@@ -1,0 +1,42 @@
+<h2>Project Structure & Architecture</h2>
+<p class="subtitle">Feature-based React + Firebase setup for scaling and motion</p>
+
+<div class="section">
+  <h3>Folder Organization</h3>
+  <p><strong>src/features/</strong> — Each feature is self-contained:</p>
+  <ul style="margin-left: 20px; line-height: 2;">
+    <li><code>hero/</code> — Homepage hero section with coach photo</li>
+    <li><code>journey/</code> — Step 01-04 learning journey cards</li>
+    <li><code>blog/</code> — Blog post listing and individual posts</li>
+    <li><code>calculators/</code> — Interactive tools (calorie calc, protein calc)</li>
+    <li><code>newsletter/</code> — Email signup form</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Data Strategy (Hybrid)</h3>
+  <p><strong>Hardcoded (JSON files):</strong> Home, about, free-resources pages — static marketing content, fast loading</p>
+  <p><strong>Firestore (Dynamic):</strong> Blog posts, calculator configs, course data — editable without re-deploy</p>
+</div>
+
+<div class="section">
+  <h3>Tech Stack</h3>
+  <ul style="margin-left: 20px; line-height: 2;">
+    <li><strong>Vite</strong> — Fast build tool, instant HMR</li>
+    <li><strong>React</strong> — UI library</li>
+    <li><strong>Zustand</strong> — Lightweight state management (UI state, form status)</li>
+    <li><strong>TailwindCSS</strong> — Utility CSS, production-optimized</li>
+    <li><strong>Framer Motion</strong> — Ready for animations (Phase 2)</li>
+    <li><strong>Firebase SDK</strong> — Firestore, Authentication, Hosting</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Why This Works for You</h3>
+  <ul style="margin-left: 20px; line-height: 2;">
+    <li>✅ <strong>Feature-based:</strong> Each section is isolated, easy to add animations later</li>
+    <li>✅ <strong>Hybrid content:</strong> Launch fast with static pages, add dynamic features as needed</li>
+    <li>✅ <strong>Firebase-native:</strong> Leverage Firebase Hosting, Firestore, and Auth directly</li>
+    <li>✅ <strong>Motion-ready:</strong> Framer Motion, Three.js bolt on easily to any feature</li>
+  </ul>
+</div>

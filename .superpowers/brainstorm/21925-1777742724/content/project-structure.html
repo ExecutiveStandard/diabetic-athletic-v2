@@ -1,0 +1,46 @@
+<h2>Project Structure & Architecture</h2>
+<p class="subtitle">Motion-Ready React + Firebase setup optimized for scaling and animation</p>
+
+<div class="mockup">
+  <div class="mockup-header">Folder Structure</div>
+  <div class="mockup-body" style="text-align: left; font-family: monospace; font-size: 13px; line-height: 1.8; padding: 20px; background: #f5f5f5; overflow-x: auto; max-height: 500px; overflow-y: auto;">
+    <div>diabetic-athletic/</div>
+    <div style="margin-left: 20px;">├── src/</div>
+    <div style="margin-left: 40px;">│   ├── features/</div>
+    <div style="margin-left: 60px;">│   │   ├── hero/</div>
+    <div style="margin-left: 80px;">│   │   │   ├── Hero.jsx</div>
+    <div style="margin-left: 80px;">│   │   │   └── hero.module.css</div>
+    <div style="margin-left: 60px;">│   │   ├── journey/          (Step 01-04)</div>
+    <div style="margin-left: 80px;">│   │   │   ├── JourneySection.jsx</div>
+    <div style="margin-left: 80px;">│   │   │   └── journey.module.css</div>
+    <div style="margin-left: 60px;">│   │   ├── blog/</div>
+    <div style="margin-left: 80px;">│   │   │   ├── BlogList.jsx</div>
+    <div style="margin-left: 80px;">│   │   │   └── blog.module.css</div>
+    <div style="margin-left: 60px;">│   │   ├── calculators/</div>
+    <div style="margin-left: 80px;">│   │   │   ├── CalorieCalc.jsx</div>
+    <div style="margin-left: 80px;">│   │   │   └── calc.module.css</div>
+    <div style="margin-left: 60px;">│   │   └── newsletter/</div>
+    <div style="margin-left: 80px;">│   │       └── NewsletterForm.jsx</div>
+    <div style="margin-left: 40px;">│   ├── components/ (Nav, Footer, Button, Modal)</div>
+    <div style="margin-left: 40px;">│   ├── lib/</div>
+    <div style="margin-left: 60px;">│   │   ├── firebase.js</div>
+    <div style="margin-left: 60px;">│   │   ├── content.js</div>
+    <div style="margin-left: 60px;">│   │   └── newsletter.js</div>
+    <div style="margin-left: 40px;">│   ├── store/ (Zustand state)</div>
+    <div style="margin-left: 40px;">│   ├── data/ (JSON content files)</div>
+    <div style="margin-left: 40px;">│   └── App.jsx</div>
+    <div style="margin-left: 40px;">├── vite.config.js</div>
+    <div style="margin-left: 40px;">├── package.json</div>
+    <div style="margin-left: 40px;">└── firebase.json</div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px;">
+  <h3>Why This Structure?</h3>
+  <ul style="line-height: 2; margin: 15px 20px;">
+    <li><strong>Feature-based:</strong> Each feature is self-contained (hero, journey, blog, calculators, newsletter). Easy to add Framer Motion animations to specific sections.</li>
+    <li><strong>Hybrid content:</strong> Marketing pages load from JSON (fast, static). Blog/tools come from Firestore (dynamic, editable).</li>
+    <li><strong>Lightweight state:</strong> Zustand for UI state (modals, forms). Firebase SDK for data fetching.</li>
+    <li><strong>Motion-ready:</strong> Isolated features = easy to wrap with Framer Motion or Three.js later.</li>
+  </ul>
+</div>

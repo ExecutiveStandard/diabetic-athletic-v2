@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/nicholascaracandas/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/**)",
+      "Bash(scripts/start-server.sh --project-dir \"/Users/nicholascaracandas/Desktop/CLAUDE FILES/Diabetic Athletic Home page\")",
+      "mcp__142e7c0d-2f45-4f63-ac36-af1264da8747__search_files",
+      "mcp__142e7c0d-2f45-4f63-ac36-af1264da8747__read_file_content",
+      "Bash(grep -E \"\\\\.md$\")",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git config *)"
+    ]
+  }
+}
