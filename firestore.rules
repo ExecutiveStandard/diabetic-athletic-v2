@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /blog_posts/{document=**} {
+      allow read: if resource.data.published == true;
+      allow write: if request.auth.token.admin == true;
+    }
+    match /calculators/{document=**} {
+      allow read: if resource.data.published == true;
+      allow write: if request.auth.token.admin == true;
+    }
+    match /newsletter_signups/{document=**} {
+      allow create: if request.resource.data.email != null;
+      allow read: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
