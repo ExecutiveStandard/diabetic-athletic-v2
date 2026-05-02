@@ -1,19 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /blog_posts/{document=**} {
+    // Blog posts: public read, admin write
+    match /blog_posts/{postId} {
       allow read: if resource.data.published == true;
-      allow write: if request.auth.token.admin == true;
+      allow create, update, delete: if request.auth.uid in ['admin-uid'];
     }
-    match /calculators/{document=**} {
+
+    // Calculators: public read, admin write
+    match /calculators/{calcId} {
       allow read: if resource.data.published == true;
-      allow write: if request.auth.token.admin == true;
+      allow create, update, delete: if request.auth.uid in ['admin-uid'];
     }
-    match /newsletter_signups/{document=**} {
+
+    // Newsletter signups: write only (no direct read)
+    match /newsletter_signups/{docId} {
       allow create: if request.resource.data.email != null;
-      allow read: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow read, update, delete: if false;
     }
   }
 }
