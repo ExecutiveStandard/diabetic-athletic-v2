@@ -8,5 +8,74 @@
   "about": {
     "headline": "Start Your Journey",
     "description": "This site was created to help free you as a person living with diabetes, so you can get back to the core of what matters - living life on your terms beyond numbers with more muscle, peak health and outperforming the average as if it were the new normal..."
+  },
+  "journey": {
+    "headline": "Start Your Journey",
+    "description": "Not Sure where to get started? Here's where most future type champions start their journey!",
+    "steps": [
+      {
+        "id": 1,
+        "title": "Step 01",
+        "courses": [
+          {
+            "name": "Dosing Secrets",
+            "description": "Master your medication with this self-paced course for type 1 diabetics. Optimize your insulin, improve time in range, and gain confidence in your dosing.",
+            "status": "Coming Soon"
+          },
+          {
+            "name": "Exercise Secrets",
+            "description": "Transform your fitness with Exercise Secrets. Learn to tweak insulin, avoid lows, and turn fear into victory.",
+            "status": "Coming Soon"
+          },
+          {
+            "name": "Nutrition Secrets",
+            "description": "Revolutionize your diet through mindful eating. Master carb counting, enhance insulin sensitivity, and discover meals that nourish.",
+            "status": "Coming Soon"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Step 02",
+        "name": "5 Day Diabetic Domination Toolkit",
+        "description": "Catapult Your Time In Range To An Incredible 85% and Learn How To Dose With Accuracy And Confidence Every time! Start Dominating Your T1D In Just 5 Days!",
+        "status": "Coming Soon",
+        "singleCard": true
+      },
+      {
+        "id": 3,
+        "title": "Step 03",
+        "courses": [
+          {
+            "name": "The Type 100-Day Fat Loss Program",
+            "description": "Fast-track to a leaner you, with diabetes in mind, designed for impactful, sustainable results.",
+            "status": "Coming Soon"
+          },
+          {
+            "name": "The Type 100-Day Muscle Gain Program",
+            "description": "Sculpt your strength, considering your diabetes, with our plan focused on steady, impressive gains.",
+            "status": "Check Now"
+          },
+          {
+            "name": "Private Coaching",
+            "description": "The Type 1-1 Private Coaching Experience - personalized program beyond fat loss and muscle gain.",
+            "status": "Apply Here"
+          },
+          {
+            "name": "High Performance Blueprint",
+            "description": "Designed To Empower High-Performing Professionals, Entrepreneurs, And Ambitious Individuals living with diabetes.",
+            "status": "Apply Here"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Step 04",
+        "name": "The Type-1-Torchbearer MVP Program",
+        "description": "For all those who have been through the Diabetic Athletic Coaching System. A select opportunity to be sponsored and become an ambassador for others.",
+        "status": "Coming Soon",
+        "singleCard": true
+      }
+    ]
   }
 }
