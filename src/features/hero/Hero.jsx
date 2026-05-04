@@ -1,6 +1,5 @@
 // src/features/hero/Hero.jsx
 import Button from '../../components/Button'
-import styles from './hero.module.css'
 import { useAppStore } from '../../store/appStore'
 import homeData from '../../data/home.json'
 
@@ -9,29 +8,32 @@ export default function Hero() {
   const { hero } = homeData
 
   return (
-    <section className={styles.hero}>
-      <div className="max-w-7xl mx-auto px-4 py-16 md:py-24 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+    <section className="bg-da-dark bg-dots relative overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6 py-20 md:py-32 grid grid-cols-1 md:grid-cols-2 gap-12 items-center relative z-10">
         {/* Left side: Text */}
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold text-da-dark mb-4">
-            {hero.headline}
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            {hero.description}
+          <p className="text-da-cyan uppercase tracking-widest text-sm font-bold mb-4">
+            The Official Website Of Diabetic Athletic
           </p>
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-black uppercase leading-tight tracking-tight text-white mb-8">
+            Known For Turning <span className="text-da-cyan">Diabetic Struggles</span> Into <span className="underline-gold">Fitness Successes</span>
+          </h1>
           <Button
-            variant="primary"
+            variant="gradient"
             size="lg"
             onClick={() => openModal('newsletterOpen')}
           >
-            {hero.cta}
+            Subscribe →
           </Button>
+          <p className="text-white/60 mt-4 text-sm">Join Over 500+ Weekly Readers!</p>
         </div>
 
-        {/* Right side: Placeholder for coach image */}
-        <div className={styles.heroImage}>
-          <div className="w-full h-96 md:h-full bg-gradient-to-br from-da-cyan to-da-gold rounded-md flex items-center justify-center min-h-[400px]">
-            <p className="text-white text-center">Coach Photo Placeholder</p>
+        {/* Right side: Coach Photo Placeholder */}
+        <div className="relative">
+          <div className="absolute -inset-4 bg-gradient-to-br from-da-cyan/30 to-da-gold/30 blur-3xl"></div>
+          <div className="relative w-full h-[500px] bg-gradient-to-br from-da-dark to-da-darker border border-white/10 rounded-2xl flex items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-da-cyan/20 via-transparent to-da-gold/20"></div>
+            <p className="text-white/40 text-center relative z-10 uppercase tracking-wider text-sm">Coach Photo<br/>(Nicholas Caracandas)</p>
           </div>
         </div>
       </div>

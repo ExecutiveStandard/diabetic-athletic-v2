@@ -9,6 +9,11 @@
     "headline": "Start Your Journey",
     "description": "This site was created to help free you as a person living with diabetes, so you can get back to the core of what matters - living life on your terms beyond numbers with more muscle, peak health and outperforming the average as if it were the new normal..."
   },
+  "coach": {
+    "headline": "Our Coach Nicholas Caracandas",
+    "bio": "Nicholas Caracandas is the founder of Diabetic Athletic. As a type 1 diabetic himself, he has dedicated his life to helping others turn their diabetic struggles into fitness successes. Through his proven coaching system, he has helped hundreds of people with diabetes achieve incredible time in range, lose fat, build muscle, and live life beyond the numbers.",
+    "imageAlt": "Coach Nicholas Caracandas"
+  },
   "journey": {
     "headline": "Start Your Journey",
     "description": "Not Sure where to get started? Here's where most future type champions start their journey!",

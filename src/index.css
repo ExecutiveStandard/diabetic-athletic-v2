@@ -6,6 +6,7 @@
   --color-da-dark: #221E1F;
   --color-da-cyan: #46C0ED;
   --color-da-gold: #FCC826;
+  --color-da-darker: #15131A;
   --font-lato: 'Lato', sans-serif;
 }
 
@@ -21,6 +22,47 @@ html {
 
 body {
   font-family: 'Lato', sans-serif;
-  background-color: white;
-  color: #221E1F;
+  background-color: #221E1F;
+  color: #FFFFFF;
+  font-weight: 400;
+}
+
+/* Gradient utility classes */
+.bg-da-gradient {
+  background: linear-gradient(135deg, #46C0ED 0%, #FCC826 100%);
+}
+
+.bg-da-gradient-radial {
+  background: radial-gradient(circle at 30% 30%, #46C0ED 0%, #221E1F 70%);
+}
+
+.bg-da-card {
+  background: linear-gradient(180deg, #2A2528 0%, #1A1618 100%);
+  border: 1px solid rgba(70, 192, 237, 0.15);
+}
+
+.bg-da-card-accent {
+  background: linear-gradient(135deg, #2A4A55 0%, #1A1618 50%, #4A3A1A 100%);
+  border: 1px solid rgba(70, 192, 237, 0.25);
+}
+
+/* Dot pattern background */
+.bg-dots {
+  background-image: radial-gradient(circle, rgba(252, 200, 38, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Underline accent */
+.underline-gold {
+  position: relative;
+  display: inline-block;
+}
+.underline-gold::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #FCC826;
 }

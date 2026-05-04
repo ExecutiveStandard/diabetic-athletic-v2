@@ -10,7 +10,7 @@ export default function App() {
   const { modals, closeModal } = useAppStore()
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-da-dark">
       <Nav />
       <main className="flex-1">
         <Hero />
@@ -21,7 +21,7 @@ export default function App() {
       <Modal
         isOpen={modals.newsletterOpen}
         onClose={() => closeModal('newsletterOpen')}
-        title="Subscribe to Newsletter"
+        title="Subscribe"
       >
         <NewsletterForm onClose={() => closeModal('newsletterOpen')} />
       </Modal>
