@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap');
+@import "tailwindcss";
 
 @theme {
   --color-da-dark: #221E1F;
@@ -9,12 +9,10 @@
   --font-lato: 'Lato', sans-serif;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* Tailwind preflight handles the universal reset (margin/padding/box-sizing).
+   Adding our own `* { padding: 0 }` outside a layer would override Tailwind's
+   `.p-6`, `.p-8`, etc. utilities (since unlayered rules win over @layer rules).
+   So we only set scroll-behavior here. */
 html {
   scroll-behavior: smooth;
 }
@@ -28,7 +26,7 @@ body {
   line-height: 1.6;
 }
 
-/* Container - explicit utility class to guarantee proper centering */
+/* CONTAINER - guaranteed to work */
 .da-container {
   width: 100%;
   max-width: 1280px;
@@ -40,8 +38,8 @@ body {
 
 @media (min-width: 768px) {
   .da-container {
-    padding-left: 3rem;
-    padding-right: 3rem;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
   }
 }
 
@@ -52,7 +50,7 @@ body {
   }
 }
 
-/* Section padding utility */
+/* SECTION PADDING */
 .section-padding {
   padding-top: 5rem;
   padding-bottom: 5rem;
@@ -60,12 +58,19 @@ body {
 
 @media (min-width: 768px) {
   .section-padding {
+    padding-top: 7rem;
+    padding-bottom: 7rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .section-padding {
     padding-top: 8rem;
     padding-bottom: 8rem;
   }
 }
 
-/* Gradient utility classes */
+/* GRADIENTS */
 .bg-da-gradient {
   background: linear-gradient(135deg, #46C0ED 0%, #FCC826 100%);
 }
@@ -80,34 +85,53 @@ body {
 }
 
 .bg-da-card-accent {
-  background: linear-gradient(135deg, #2A4A55 0%, #1A1618 50%, #4A3A1A 100%);
+  background: linear-gradient(135deg, rgba(70, 192, 237, 0.15) 0%, rgba(34, 30, 31, 1) 50%, rgba(252, 200, 38, 0.15) 100%);
   border: 1px solid rgba(70, 192, 237, 0.25);
 }
 
-/* Dot pattern background */
+/* DOT PATTERN */
 .bg-dots {
-  background-image: radial-gradient(circle, rgba(252, 200, 38, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(252, 200, 38, 0.06) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
-/* Underline accent */
-.underline-gold {
-  position: relative;
-  display: inline-block;
-}
-.underline-gold::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 0;
-  right: 0;
-  height: 6px;
-  background: #FCC826;
+/* HIGHLIGHT UNDERLINE - FIXED implementation
+   Uses an inline gradient background that follows the actual text only,
+   so it cannot extend across the entire headline width. */
+.highlight-gold {
+  background-image: linear-gradient(transparent 70%, rgba(252, 200, 38, 0.6) 70%, rgba(252, 200, 38, 0.6) 95%, transparent 95%);
+  background-repeat: no-repeat;
+  padding: 0 4px;
+  display: inline;
 }
 
-/* Section divider */
+/* SECTION DIVIDER */
 .section-divider {
   background: linear-gradient(90deg, transparent 0%, rgba(70, 192, 237, 0.3) 50%, transparent 100%);
   height: 1px;
   width: 100%;
+}
+
+/* HOVER LIFT */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  border-color: rgba(70, 192, 237, 0.4);
+}
+
+/* CARD INNER PADDING */
+.card-padding {
+  padding: 2rem;
+}
+@media (min-width: 768px) {
+  .card-padding {
+    padding: 2.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .card-padding {
+    padding: 3rem;
+  }
 }

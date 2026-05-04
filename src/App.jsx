@@ -2,8 +2,10 @@ import Nav from './components/Nav'
 import Footer from './components/Footer'
 import Modal from './components/Modal'
 import Hero from './features/hero/Hero'
+import NewsletterStrip from './features/newsletter/NewsletterStrip'
 import JourneySection from './features/journey/JourneySection'
 import CoachBio from './features/coach/CoachBio'
+import DiscoveryCallCTA from './features/cta/DiscoveryCallCTA'
 import LatestInsights from './features/insights/LatestInsights'
 import NewsletterForm from './features/newsletter/NewsletterForm'
 import { useAppStore } from './store/appStore'
@@ -16,8 +18,10 @@ export default function App() {
       <Nav />
       <main className="flex-1">
         <Hero />
+        <NewsletterStrip />
         <JourneySection />
         <CoachBio />
+        <DiscoveryCallCTA />
         <LatestInsights />
       </main>
       <Footer />
