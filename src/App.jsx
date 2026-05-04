@@ -3,6 +3,8 @@ import Footer from './components/Footer'
 import Modal from './components/Modal'
 import Hero from './features/hero/Hero'
 import JourneySection from './features/journey/JourneySection'
+import CoachBio from './features/coach/CoachBio'
+import LatestInsights from './features/insights/LatestInsights'
 import NewsletterForm from './features/newsletter/NewsletterForm'
 import { useAppStore } from './store/appStore'
 
@@ -15,6 +17,8 @@ export default function App() {
       <main className="flex-1">
         <Hero />
         <JourneySection />
+        <CoachBio />
+        <LatestInsights />
       </main>
       <Footer />
 
