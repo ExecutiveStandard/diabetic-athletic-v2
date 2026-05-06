@@ -1,12 +1,13 @@
+import { Routes, Route } from 'react-router-dom'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import Modal from './components/Modal'
-import Hero from './features/hero/Hero'
-import NewsletterStrip from './features/newsletter/NewsletterStrip'
-import JourneySection from './features/journey/JourneySection'
-import CoachBio from './features/coach/CoachBio'
-import DiscoveryCallCTA from './features/cta/DiscoveryCallCTA'
-import LatestInsights from './features/insights/LatestInsights'
+import ScrollToTop from './components/ScrollToTop'
+import HomePage from './pages/HomePage'
+import BlogPage from './pages/BlogPage'
+import BlogPostPage from './pages/BlogPostPage'
+import AboutPage from './pages/AboutPage'
+import FreeResourcesPage from './pages/FreeResourcesPage'
 import NewsletterForm from './features/newsletter/NewsletterForm'
 import { useAppStore } from './store/appStore'
 
@@ -15,14 +16,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-da-dark">
+      <ScrollToTop />
       <Nav />
       <main className="flex-1">
-        <Hero />
-        <NewsletterStrip />
-        <JourneySection />
-        <CoachBio />
-        <DiscoveryCallCTA />
-        <LatestInsights />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/free-resources" element={<FreeResourcesPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
+        </Routes>
       </main>
       <Footer />
 

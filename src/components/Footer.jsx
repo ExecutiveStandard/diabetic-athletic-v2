@@ -1,8 +1,9 @@
+import { Link } from 'react-router-dom'
+
 export default function Footer() {
   return (
     <footer className="bg-da-darker border-t border-white/10">
       <div className="da-container py-16 md:py-20">
-        {/* Top: Columns */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-12 mb-16">
           <div>
             <h3 className="font-black uppercase tracking-wider text-white mb-5 text-lg">
@@ -16,10 +17,10 @@ export default function Footer() {
           <div>
             <h4 className="font-bold uppercase text-sm tracking-wider text-da-cyan mb-5">Quick Links</h4>
             <ul className="space-y-3 text-sm text-white/60">
-              <li><a href="#home" className="hover:text-da-cyan transition">Home</a></li>
-              <li><a href="#about" className="hover:text-da-cyan transition">About</a></li>
-              <li><a href="#resources" className="hover:text-da-cyan transition">Resources</a></li>
-              <li><a href="#blog" className="hover:text-da-cyan transition">Blog</a></li>
+              <li><Link to="/" className="hover:text-da-cyan transition">Home</Link></li>
+              <li><Link to="/about" className="hover:text-da-cyan transition">About</Link></li>
+              <li><Link to="/free-resources" className="hover:text-da-cyan transition">Resources</Link></li>
+              <li><Link to="/blog" className="hover:text-da-cyan transition">Blog</Link></li>
             </ul>
           </div>
 
@@ -49,9 +50,8 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Bottom: Copyright - cleanly separated */}
         <div className="border-t border-white/10 pt-8 text-center text-sm text-white/40">
-          <p>Copyright 2025 © Diabetic Athletic. All Rights Reserved.</p>
+          <p>Copyright 2026 © Diabetic Athletic. All Rights Reserved.</p>
         </div>
       </div>
     </footer>
