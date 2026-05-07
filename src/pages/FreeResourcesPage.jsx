@@ -1,49 +1,35 @@
 import { Link } from 'react-router-dom'
 import Button from '../components/Button'
 
-const resources = [
+const calculators = [
   {
-    title: 'Calorie Calculator',
-    description: 'Calculate your daily caloric needs as a type 1 diabetic. Optimize your nutrition for fitness goals.',
-    cta: 'Calculate Now',
-    badge: 'Tool',
-    href: '#'
+    slug: 'calorie',
+    name: 'Calorie & TDEE Calculator',
+    tagline: 'Your daily energy blueprint',
+    description: 'Calculate your Basal Metabolic Rate (BMR) and Total Daily Energy Expenditure (TDEE) using the proven Mifflin-St Jeor formula. Get personalized calorie targets for fat loss, maintenance, and muscle gain — calibrated specifically for your activity level.',
+    badge: 'Most Popular',
   },
   {
-    title: 'Protein Calculator',
-    description: 'Find your optimal protein intake for muscle gain, fat loss, or maintenance with diabetes considerations.',
-    cta: 'Calculate Now',
-    badge: 'Tool',
-    href: '#'
+    slug: 'protein',
+    name: 'Protein Intake Calculator',
+    tagline: 'Build muscle, manage glucose',
+    description: 'Discover the optimal daily protein intake to preserve muscle, improve insulin sensitivity, and accelerate recovery. Tailored ranges for cutting, maintenance, and muscle building, with per-meal distribution recommendations.',
+    badge: 'Essential',
   },
   {
-    title: '5 Day Diabetic Domination Toolkit',
-    description: 'Catapult your time in range to 85% in just 5 days with this free downloadable PDF guide.',
-    cta: 'Download Free',
-    badge: 'PDF',
-    href: '#'
+    slug: 'insulin',
+    name: 'Insulin-to-Carb Ratio Calculator',
+    tagline: 'Master your dosing',
+    description: 'Calculate insulin units for any meal using your personal insulin-to-carb (I:C) ratio and current blood glucose. Includes correction dose calculation. Built for Type 1 diabetics who want predictable, accurate dosing.',
+    badge: 'T1D Essential',
   },
   {
-    title: 'Insulin Dosing Cheat Sheet',
-    description: 'Quick reference guide for adjusting insulin around exercise, meals, and stress.',
-    cta: 'Download Free',
-    badge: 'PDF',
-    href: '#'
+    slug: 'cardio',
+    name: 'Heart Rate Zones Calculator',
+    tagline: 'Train smarter, not harder',
+    description: 'Calculate your 5 personalized heart rate training zones using the Karvonen method (which factors in your resting heart rate). Know exactly when to push, when to recover, and how to optimize cardio for fat loss vs endurance.',
+    badge: 'Performance',
   },
-  {
-    title: 'Pre-Workout Nutrition Guide',
-    description: 'Learn what to eat before exercise to maintain stable glucose and maximize performance.',
-    cta: 'Read Guide',
-    badge: 'Guide',
-    href: '#'
-  },
-  {
-    title: 'Weekly Newsletter',
-    description: 'Get the Diabetic Athletic secrets delivered to your inbox every week.',
-    cta: 'Subscribe',
-    badge: 'Newsletter',
-    href: '#'
-  }
 ]
 
 export default function FreeResourcesPage() {
@@ -54,36 +40,41 @@ export default function FreeResourcesPage() {
         <div className="absolute bottom-1/4 -left-32 w-[500px] h-[500px] bg-da-gold/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="da-container relative z-10 py-20 md:py-28 text-center">
-          <p className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-4">100% Free</p>
+          <p className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-4">Free Resources</p>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black uppercase leading-[1.05] tracking-tight text-white mb-6">
-            Free <span className="text-da-gold">Resources</span>
+            Diabetic Athletic <span className="text-da-gold">Toolkit</span>
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto leading-relaxed">
-            Calculators, guides, and tools to help you master your T1D and crush your fitness goals — all completely free.
+            Four free, fully-functional calculators built for Type 1 diabetics serious about their fitness. No email gates on the math — just plug in your numbers and get answers.
           </p>
         </div>
       </section>
 
       <section className="da-container section-padding">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {resources.map((resource, idx) => (
-            <article key={idx} className="bg-da-card rounded-xl overflow-hidden flex flex-col h-full hover-lift">
-              <div className="aspect-[16/10] bg-gradient-to-br from-da-cyan/15 to-da-gold/15 flex items-center justify-center border-b border-white/5 relative">
-                <span className="absolute top-4 right-4 bg-da-cyan/20 text-da-cyan text-xs uppercase font-bold tracking-wider px-3 py-1 rounded-full border border-da-cyan/30">
-                  {resource.badge}
-                </span>
-                <p className="text-white/30 uppercase tracking-wider text-xs">Resource Image</p>
-              </div>
-              <div className="p-6 md:p-8 flex flex-col flex-1">
-                <h3 className="text-xl md:text-2xl font-black uppercase tracking-wide text-white mb-4 leading-tight">
-                  {resource.title}
-                </h3>
-                <p className="text-sm text-white/60 leading-relaxed mb-6 flex-1">
-                  {resource.description}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {calculators.map((calc) => (
+            <article key={calc.slug} className="bg-da-card rounded-2xl overflow-hidden hover-lift flex flex-col h-full">
+              <div className="p-8 md:p-10 flex flex-col flex-1">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-da-cyan/20 to-da-gold/20 border border-da-cyan/30 flex items-center justify-center">
+                    <span className="text-da-cyan font-black text-xl uppercase tracking-wider">{calc.slug.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <span className="bg-da-gold/15 border border-da-gold/30 text-da-gold text-xs uppercase tracking-wider font-bold px-3 py-1.5 rounded-full">
+                    {calc.badge}
+                  </span>
+                </div>
+                <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">{calc.tagline}</p>
+                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-wide text-white mb-4 leading-tight">
+                  {calc.name}
+                </h2>
+                <p className="text-sm md:text-base text-white/60 leading-relaxed mb-8 flex-1">
+                  {calc.description}
                 </p>
-                <Button variant="gradient" size="md" className="w-full">
-                  {resource.cta}
-                </Button>
+                <Link to={`/calculators/${calc.slug}`}>
+                  <Button variant="gradient" size="lg" className="w-full">
+                    Open Calculator →
+                  </Button>
+                </Link>
               </div>
             </article>
           ))}

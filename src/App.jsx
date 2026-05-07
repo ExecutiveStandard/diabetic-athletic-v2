@@ -8,6 +8,10 @@ import BlogPage from './pages/BlogPage'
 import BlogPostPage from './pages/BlogPostPage'
 import AboutPage from './pages/AboutPage'
 import FreeResourcesPage from './pages/FreeResourcesPage'
+import CalorieCalculator from './features/calculators/CalorieCalculator'
+import ProteinCalculator from './features/calculators/ProteinCalculator'
+import InsulinCalculator from './features/calculators/InsulinCalculator'
+import CardioCalculator from './features/calculators/CardioCalculator'
 import NewsletterForm from './features/newsletter/NewsletterForm'
 import { useAppStore } from './store/appStore'
 
@@ -25,6 +29,10 @@ export default function App() {
           <Route path="/free-resources" element={<FreeResourcesPage />} />
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
+          <Route path="/calculators/calorie" element={<CalorieCalculator />} />
+          <Route path="/calculators/protein" element={<ProteinCalculator />} />
+          <Route path="/calculators/insulin" element={<InsulinCalculator />} />
+          <Route path="/calculators/cardio" element={<CardioCalculator />} />
         </Routes>
       </main>
       <Footer />
