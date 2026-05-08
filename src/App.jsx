@@ -31,6 +31,8 @@ export default function App() {
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/calculators/calorie" element={<CalorieCalculator />} />
           <Route path="/calculators/protein" element={<ProteinCalculator />} />
+          <Route path="/calculators/magic-ratio" element={<InsulinCalculator />} />
+          {/* legacy URL — keeps old links working */}
           <Route path="/calculators/insulin" element={<InsulinCalculator />} />
           <Route path="/calculators/cardio" element={<CardioCalculator />} />
         </Routes>

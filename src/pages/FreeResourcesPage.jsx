@@ -17,10 +17,10 @@ const calculators = [
     badge: 'Essential',
   },
   {
-    slug: 'insulin',
-    name: 'Insulin-to-Carb Ratio Calculator',
-    tagline: 'Master your dosing',
-    description: 'Calculate insulin units for any meal using your personal insulin-to-carb (I:C) ratio and current blood glucose. Includes correction dose calculation. Built for Type 1 diabetics who want predictable, accurate dosing.',
+    slug: 'magic-ratio',
+    name: 'The Magic Ratio Calculator',
+    tagline: 'Wizard-like accuracy, athlete-like confidence',
+    description: 'Your perfect starting point to find your insulin-to-carb (I:C) ratios and Insulin Sensitivity Factor (ISF). Get morning, afternoon, and evening ICRs plus full meal-time dose calculations including carb coverage and high-BG correction. Built for Type 1 diabetics who want predictable, accurate dosing.',
     badge: 'T1D Essential',
   },
   {

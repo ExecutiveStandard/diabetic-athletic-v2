@@ -1,166 +1,640 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
 
+// =============================================================================
+// THE DIABETIC ATHLETIC MAGIC RATIO CALCULATOR
+// Faithful port of the original GoHighLevel `calculate()` math:
+//   - TDD (auto): weight × 0.55 (kg) or weight ÷ 4 (lbs)
+//   - ISF: (1800 | 100) ÷ TDD for rapid-acting, (1500 | 83) ÷ TDD for regular
+//   - ICRs: morning = 500 / (TDD × 0.8), afternoon = 500 / (TDD × 1.2),
+//           evening = 500 / TDD
+//   - Carb dose = carbs / ICR(time-of-day)
+//   - Correction = (currentBG − targetBG) / ISF, clamped at 0
+//   - Total meal dose = carb dose + correction
+// Targets: mg/dL → 100, mmol/L → 6
+// =============================================================================
+
+const ISF_NUMERATORS = {
+  rapid:   { 'mg/dL': 1800, 'mmol/L': 100 },
+  regular: { 'mg/dL': 1500, 'mmol/L': 83  },
+}
+
+const TARGET_BG = { 'mg/dL': 100, 'mmol/L': 6 }
+
+const TIME_OF_DAY = [
+  { id: 'morning',   label: 'Morning',   factor: 0.8 },
+  { id: 'afternoon', label: 'Afternoon', factor: 1.2 },
+  { id: 'evening',   label: 'Evening',   factor: 1.0 },
+]
+
+// =============================================================================
+// MATH HELPERS
+// =============================================================================
+function calcTDD({ weight, weightUnits }) {
+  if (!weight || weight <= 0) return 0
+  return weightUnits === 'kg' ? weight * 0.55 : weight / 4
+}
+
+function calcISF({ tdd, insulinType, bgUnit }) {
+  if (!tdd) return 0
+  return ISF_NUMERATORS[insulinType][bgUnit] / tdd
+}
+
+function calcICR({ tdd, time }) {
+  if (!tdd) return 0
+  const t = TIME_OF_DAY.find((x) => x.id === time)
+  return 500 / (tdd * (t?.factor ?? 1))
+}
+
+function calcCarbDose({ carbGrams, icr }) {
+  if (!carbGrams || !icr) return 0
+  return carbGrams / icr
+}
+
+function calcCorrectionDose({ currentBG, targetBG, isf }) {
+  if (!currentBG || !isf) return 0
+  const diff = currentBG - targetBG
+  return diff > 0 ? diff / isf : 0
+}
+
+// =============================================================================
+// REUSABLE STEP CARD (collapsible)
+// =============================================================================
+function StepCard({ stepNumber, title, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className={`bg-da-card rounded-2xl overflow-hidden transition-all ${open ? 'border-da-cyan/40' : ''}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full px-6 md:px-8 py-5 flex items-center justify-between gap-4 group"
+      >
+        <div className="flex items-center gap-4">
+          <span className="bg-da-gradient text-da-dark font-black uppercase tracking-wider text-xs px-3 py-1.5 rounded-full">
+            Step {stepNumber}
+          </span>
+          <span className="text-white font-bold uppercase tracking-wider text-sm md:text-base text-left group-hover:text-da-cyan transition">
+            {title}
+          </span>
+        </div>
+        <span className={`text-da-gold text-2xl font-black transition-transform flex-shrink-0 ${open ? 'rotate-45' : ''}`}>
+          +
+        </span>
+      </button>
+      {open && (
+        <div className="px-6 md:px-8 pb-8 pt-2 border-t border-white/5 space-y-5">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ResultBox({ label, value, suffix = '', accent = 'cyan', subtitle }) {
+  const accentClasses = {
+    cyan: 'border-da-cyan/40',
+    gold: 'border-da-gold/40 bg-gradient-to-br from-da-cyan/10 to-da-gold/10',
+  }
+  return (
+    <div className={`bg-da-darker rounded-lg p-5 text-center border ${accentClasses[accent]}`}>
+      <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-2">
+        {label}
+      </div>
+      <div className="text-3xl md:text-4xl font-black text-white">
+        {value}
+        {suffix && <span className="text-sm text-white/50 font-bold normal-case ml-1">{suffix}</span>}
+      </div>
+      {subtitle && <div className="text-white/50 text-xs mt-2">{subtitle}</div>}
+    </div>
+  )
+}
+
+function InfoBox({ children }) {
+  return (
+    <div className="bg-da-cyan/10 border-l-4 border-da-cyan rounded-r-lg p-4 text-white/80 text-xs md:text-sm leading-relaxed">
+      {children}
+    </div>
+  )
+}
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 export default function InsulinCalculator() {
-  const [units, setUnits] = useState('mgdl')
-  const [carbs, setCarbs] = useState('')
-  const [icRatio, setIcRatio] = useState('')
-  const [currentBG, setCurrentBG] = useState('')
-  const [targetBG, setTargetBG] = useState(100)
-  const [isf, setIsf] = useState('')
-  const [iob, setIob] = useState('0')
-  const [results, setResults] = useState(null)
+  // Step 1 — baseline inputs
+  const [insulinType, setInsulinType] = useState('rapid')
+  const [bgUnit, setBgUnit]           = useState('mg/dL')
+  const [weight, setWeight]           = useState('')
+  const [weightUnits, setWeightUnits] = useState('kg')
 
-  const calculate = (e) => {
-    e.preventDefault()
-    const c = parseFloat(carbs)
-    const ic = parseFloat(icRatio)
-    const bg = parseFloat(currentBG)
-    const tgt = parseFloat(targetBG)
-    const sens = parseFloat(isf)
-    const onBoard = parseFloat(iob || 0)
+  // Custom override toggle
+  const [useCustomRatios, setUseCustomRatios] = useState(false)
+  const [customISF, setCustomISF]             = useState('')
+  const [customMorningICR, setCustomMorningICR]     = useState('')
+  const [customAfternoonICR, setCustomAfternoonICR] = useState('')
+  const [customEveningICR, setCustomEveningICR]     = useState('')
 
-    if (!c || !ic) return alert('Carbs and I:C ratio are required')
+  // Step 2 — meal
+  const [carbGrams, setCarbGrams]   = useState('')
+  const [timeOfDay, setTimeOfDay]   = useState('morning')
 
-    const mealDose = c / ic
-    let correctionDose = 0
-    if (bg && tgt && sens) {
-      correctionDose = (bg - tgt) / sens
+  // Step 3 — correction
+  const [currentBG, setCurrentBG]   = useState('')
+
+  // Show formula reference table
+  const [showFormulaTable, setShowFormulaTable] = useState(false)
+
+  // ===== Computed =====
+  const tdd = useMemo(() => {
+    const w = parseFloat(weight)
+    return calcTDD({ weight: w, weightUnits })
+  }, [weight, weightUnits])
+
+  const systemISF = useMemo(
+    () => calcISF({ tdd, insulinType, bgUnit }),
+    [tdd, insulinType, bgUnit]
+  )
+
+  const systemICRs = useMemo(() => ({
+    morning:   calcICR({ tdd, time: 'morning' }),
+    afternoon: calcICR({ tdd, time: 'afternoon' }),
+    evening:   calcICR({ tdd, time: 'evening' }),
+  }), [tdd])
+
+  // ISF actually used (system or user override)
+  const activeISF = useCustomRatios
+    ? parseFloat(customISF) || 0
+    : systemISF
+
+  // ICR for selected time of day
+  const activeICR = useMemo(() => {
+    if (useCustomRatios) {
+      const map = { morning: customMorningICR, afternoon: customAfternoonICR, evening: customEveningICR }
+      return parseFloat(map[timeOfDay]) || 0
     }
-    const totalBeforeIOB = mealDose + correctionDose
-    const finalDose = Math.max(0, totalBeforeIOB - onBoard)
+    return systemICRs[timeOfDay]
+  }, [useCustomRatios, timeOfDay, customMorningICR, customAfternoonICR, customEveningICR, systemICRs])
 
-    setResults({
-      mealDose: Math.round(mealDose * 10) / 10,
-      correctionDose: Math.round(correctionDose * 10) / 10,
-      iob: onBoard,
-      finalDose: Math.round(finalDose * 10) / 10,
-      bgDelta: bg && tgt ? Math.round((bg - tgt) * 10) / 10 : null,
-    })
+  // Step 2 — carb coverage
+  const carbDose = useMemo(
+    () => calcCarbDose({ carbGrams: parseFloat(carbGrams), icr: activeICR }),
+    [carbGrams, activeICR]
+  )
+
+  // Step 3 — correction
+  const targetBG = TARGET_BG[bgUnit]
+  const correctionDose = useMemo(
+    () => calcCorrectionDose({ currentBG: parseFloat(currentBG), targetBG, isf: activeISF }),
+    [currentBG, targetBG, activeISF]
+  )
+
+  const tooLow = parseFloat(currentBG) > 0 && parseFloat(currentBG) <= targetBG
+
+  // Step 4 — total
+  const totalDose = carbDose + correctionDose
+
+  // ===== Helpers for display =====
+  const fmt = (n, dec = 2) => (n > 0 ? n.toFixed(dec) : '0')
+  const fmtIcr = (n) => (n > 0 ? `1 : ${Math.round(n)}` : '—')
+
+  const reset = () => {
+    setInsulinType('rapid'); setBgUnit('mg/dL'); setWeight(''); setWeightUnits('kg')
+    setUseCustomRatios(false); setCustomISF(''); setCustomMorningICR('')
+    setCustomAfternoonICR(''); setCustomEveningICR('')
+    setCarbGrams(''); setTimeOfDay('morning'); setCurrentBG('')
   }
 
   return (
     <div className="bg-da-dark bg-dots min-h-screen">
       <div className="da-container py-16 md:py-20">
-        <Link to="/free-resources" className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-6 inline-block hover:text-da-gold transition">← Back to Free Resources</Link>
+        <Link
+          to="/free-resources"
+          className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-6 inline-block hover:text-da-gold transition"
+        >
+          ← Back to Free Resources
+        </Link>
 
         <div className="text-center mb-12">
-          <p className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-4">Insulin Calculator</p>
+          <p className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-4">
+            ✨ Magic Ratio Calculator
+          </p>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-black uppercase leading-[1.1] text-white mb-6">
-            Insulin <span className="text-da-gold">Dose</span> Calculator
+            The <span className="text-da-gold">Magic Ratio</span> Calculator
           </h1>
-          <p className="text-white/70 max-w-2xl mx-auto">Calculate your meal dose + correction dose using your personal I:C ratio, ISF, and current BG.</p>
+          <p className="text-white/70 max-w-2xl mx-auto text-base md:text-lg leading-relaxed">
+            The perfect starting point to find your insulin and carb ratios — so you can dose with{' '}
+            <span className="text-da-cyan font-bold">wizard-like accuracy</span> and{' '}
+            <span className="text-da-gold font-bold">athlete-like confidence</span>.
+          </p>
         </div>
 
-        <div className="bg-da-gold/10 border border-da-gold/30 rounded-xl p-5 mb-10 max-w-4xl mx-auto">
-          <p className="text-da-gold text-sm font-bold mb-1">Educational Tool — Not Medical Advice</p>
-          <p className="text-white/60 text-xs leading-relaxed">This calculator helps you understand how insulin dosing math works. ALWAYS verify with your endocrinologist or CDE before adjusting doses. Your real-world dose may differ based on illness, stress, exercise, hormones, and food composition.</p>
-        </div>
+        <div className="max-w-3xl mx-auto space-y-4">
+          {/* ============== STEP 1: Baseline ============== */}
+          <StepCard stepNumber={1} title="Finding Your Baseline (TDD, I:C & ISF)" defaultOpen>
+            {/* Insulin type */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-bold uppercase tracking-wider text-white/80">
+                  Insulin Type
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowFormulaTable(!showFormulaTable)}
+                  className="text-da-gold text-xs uppercase tracking-wider font-bold hover:text-da-cyan transition"
+                >
+                  {showFormulaTable ? 'Hide' : 'Show'} formulas
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 bg-da-darker rounded-md p-1">
+                <button
+                  type="button"
+                  onClick={() => setInsulinType('rapid')}
+                  className={`py-2.5 rounded text-xs md:text-sm font-bold uppercase transition ${
+                    insulinType === 'rapid' ? 'bg-da-cyan text-da-dark' : 'text-white/60'
+                  }`}
+                >
+                  Rapid Acting
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInsulinType('regular')}
+                  className={`py-2.5 rounded text-xs md:text-sm font-bold uppercase transition ${
+                    insulinType === 'regular' ? 'bg-da-cyan text-da-dark' : 'text-white/60'
+                  }`}
+                >
+                  Regular Insulin
+                </button>
+              </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          <form onSubmit={calculate} className="bg-da-card rounded-2xl p-8 md:p-10 space-y-6">
-            <h2 className="text-xl font-black uppercase tracking-wider text-white mb-2">Inputs</h2>
+              {showFormulaTable && (
+                <div className="mt-3 bg-da-darker border border-white/10 rounded-lg overflow-hidden">
+                  <table className="w-full text-xs text-white/80">
+                    <thead className="bg-white/5 text-da-cyan uppercase tracking-wider">
+                      <tr>
+                        <th className="text-left p-3">Insulin Type</th>
+                        <th className="text-left p-3">mg/dL</th>
+                        <th className="text-left p-3">mmol/L</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t border-white/5">
+                        <td className="p-3">Rapid Acting (Humalog, Novolog, Apidra)</td>
+                        <td className="p-3 font-mono">1800 ÷ TDD</td>
+                        <td className="p-3 font-mono">100 ÷ TDD</td>
+                      </tr>
+                      <tr className="border-t border-white/5">
+                        <td className="p-3">Regular Insulin (R)</td>
+                        <td className="p-3 font-mono">1500 ÷ TDD</td>
+                        <td className="p-3 font-mono">83 ÷ TDD</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Glucose units */}
+            <div>
+              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                Calculate Doses In
+              </label>
+              <div className="grid grid-cols-2 gap-2 bg-da-darker rounded-md p-1">
+                <button
+                  type="button"
+                  onClick={() => setBgUnit('mg/dL')}
+                  className={`py-2.5 rounded text-sm font-bold uppercase transition ${
+                    bgUnit === 'mg/dL' ? 'bg-da-cyan text-da-dark' : 'text-white/60'
+                  }`}
+                >
+                  mg/dL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBgUnit('mmol/L')}
+                  className={`py-2.5 rounded text-sm font-bold uppercase transition ${
+                    bgUnit === 'mmol/L' ? 'bg-da-cyan text-da-dark' : 'text-white/60'
+                  }`}
+                >
+                  mmol/L
+                </button>
+              </div>
+            </div>
+
+            {/* Body weight */}
+            <div>
+              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                Body Weight *
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder={weightUnits === 'kg' ? '75' : '165'}
+                  className="col-span-2 px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+                />
+                <select
+                  value={weightUnits}
+                  onChange={(e) => setWeightUnits(e.target.value)}
+                  className="px-3 py-3 bg-da-darker border border-white/20 rounded-md text-white focus:outline-none focus:border-da-cyan transition"
+                >
+                  <option value="kg">kg</option>
+                  <option value="pound">lbs</option>
+                </select>
+              </div>
+            </div>
+
+            {/* TDD result */}
+            <div className="pt-2">
+              <ResultBox
+                label="Recommended Total Daily Dose (TDD)"
+                value={fmt(tdd)}
+                suffix="units / day"
+                subtitle="~40–50% basal · ~50–60% bolus (carb cover + correction)"
+              />
+            </div>
+
+            {/* Custom toggle */}
+            <label className="flex items-start gap-3 p-4 bg-gradient-to-r from-purple-600/20 to-da-cyan/20 border border-purple-500/30 rounded-md cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useCustomRatios}
+                onChange={(e) => setUseCustomRatios(e.target.checked)}
+                className="mt-0.5 accent-da-cyan w-5 h-5"
+              />
+              <div>
+                <div className="text-white font-bold text-sm">
+                  Use my own ISF and I:C ratios instead
+                </div>
+                <div className="text-white/50 text-xs mt-1">
+                  Already know your numbers from your endocrinologist? Override below.
+                </div>
+              </div>
+            </label>
+
+            {!useCustomRatios ? (
+              <>
+                {/* System-calculated ratios */}
+                <ResultBox
+                  label="Insulin Sensitivity Factor (ISF)"
+                  value={fmt(systemISF)}
+                  suffix={bgUnit}
+                  subtitle="One unit of insulin lowers BG by this amount"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
+                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
+                      Morning ICR
+                    </div>
+                    <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.morning)}</div>
+                    <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
+                  </div>
+                  <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
+                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
+                      Afternoon ICR
+                    </div>
+                    <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.afternoon)}</div>
+                    <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
+                  </div>
+                  <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
+                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
+                      Evening ICR
+                    </div>
+                    <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.evening)}</div>
+                    <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
+                  </div>
+                </div>
+
+                <InfoBox>
+                  These are starting-point estimates. If your body is more insulin-resistant, you may need a higher dose. If you're more sensitive, you may need less. Always log your numbers and adjust with your healthcare team.
+                </InfoBox>
+              </>
+            ) : (
+              <>
+                {/* Custom inputs */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                      Your Personal ISF ({bgUnit} per unit)
+                    </label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={customISF}
+                      onChange={(e) => setCustomISF(e.target.value)}
+                      placeholder={bgUnit === 'mg/dL' ? 'e.g. 50' : 'e.g. 2.8'}
+                      className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                      Morning ICR (grams carb per 1 unit)
+                    </label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={customMorningICR}
+                      onChange={(e) => setCustomMorningICR(e.target.value)}
+                      placeholder="e.g. 8"
+                      className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                      Afternoon ICR
+                    </label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={customAfternoonICR}
+                      onChange={(e) => setCustomAfternoonICR(e.target.value)}
+                      placeholder="e.g. 12"
+                      className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                      Evening ICR
+                    </label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={customEveningICR}
+                      onChange={(e) => setCustomEveningICR(e.target.value)}
+                      placeholder="e.g. 10"
+                      className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </StepCard>
+
+          {/* ============== STEP 2: Carb Coverage ============== */}
+          <StepCard stepNumber={2} title="Carb Coverage">
+            <div>
+              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                Carbohydrate Content (g)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={carbGrams}
+                onChange={(e) => setCarbGrams(e.target.value)}
+                placeholder="How many grams of carbs in your meal?"
+                className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+              />
+            </div>
 
             <div>
-              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">BG Units</label>
-              <div className="grid grid-cols-2 gap-2 bg-da-darker rounded-md p-1">
-                <button type="button" onClick={() => { setUnits('mgdl'); setTargetBG(100) }} className={`py-2 rounded text-sm font-bold uppercase transition ${units === 'mgdl' ? 'bg-da-cyan text-da-dark' : 'text-white/60'}`}>mg/dL</button>
-                <button type="button" onClick={() => { setUnits('mmoll'); setTargetBG(5.5) }} className={`py-2 rounded text-sm font-bold uppercase transition ${units === 'mmoll' ? 'bg-da-cyan text-da-dark' : 'text-white/60'}`}>mmol/L</button>
+              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                Time of Day
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {TIME_OF_DAY.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTimeOfDay(t.id)}
+                    className={`py-3 rounded-md text-sm font-bold uppercase transition border ${
+                      timeOfDay === t.id
+                        ? 'bg-da-cyan text-da-dark border-da-cyan'
+                        : 'bg-da-darker text-white/70 border-white/10 hover:border-white/30'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="border-t border-white/10 pt-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-da-cyan mb-4">Meal Dose</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">Carbs in Meal (g)</label>
-                  <input type="number" min="0" step="1" value={carbs} onChange={(e) => setCarbs(e.target.value)} required className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white focus:outline-none focus:border-da-cyan" placeholder="60" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">I:C Ratio (1 unit per X g carbs)</label>
-                  <input type="number" min="1" step="0.5" value={icRatio} onChange={(e) => setIcRatio(e.target.value)} required className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white focus:outline-none focus:border-da-cyan" placeholder="10" />
+            <div>
+              <div className="text-xs uppercase tracking-wider font-bold text-white/60 mb-2">
+                Carbohydrate Ratio (g per 1 unit)
+              </div>
+              <div className="px-4 py-3 bg-da-darker/60 border border-white/10 rounded-md text-white/90 font-mono text-sm">
+                {activeICR > 0 ? activeICR.toFixed(0) : '—'} g per 1 unit
+              </div>
+              <p className="text-white/40 text-xs mt-2">
+                Auto-populated from your selected time-of-day ICR above.
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <ResultBox
+                label="Insulin Dose to Cover Carbohydrates"
+                value={fmt(carbDose)}
+                suffix="units"
+                accent="cyan"
+              />
+            </div>
+          </StepCard>
+
+          {/* ============== STEP 3: Correction ============== */}
+          <StepCard stepNumber={3} title="High Blood Sugar Correction">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                  Current BG ({bgUnit})
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={currentBG}
+                  onChange={(e) => setCurrentBG(e.target.value)}
+                  placeholder={bgUnit === 'mg/dL' ? '180' : '10'}
+                  className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                  Target BG ({bgUnit})
+                </label>
+                <div className="px-4 py-3 bg-da-darker/60 border border-white/10 rounded-md text-white/90">
+                  {targetBG} <span className="text-white/40 text-xs ml-1">(fixed)</span>
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-white/10 pt-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-da-cyan mb-4">Correction Dose <span className="text-white/40 normal-case font-normal">(optional)</span></h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">Current BG ({units === 'mgdl' ? 'mg/dL' : 'mmol/L'})</label>
-                  <input type="number" min="0" step="0.1" value={currentBG} onChange={(e) => setCurrentBG(e.target.value)} className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white focus:outline-none focus:border-da-cyan" placeholder={units === 'mgdl' ? '180' : '10'} />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">Target BG ({units === 'mgdl' ? 'mg/dL' : 'mmol/L'})</label>
-                  <input type="number" min="0" step="0.1" value={targetBG} onChange={(e) => setTargetBG(e.target.value)} className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white focus:outline-none focus:border-da-cyan" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">ISF — Drop per 1 unit ({units === 'mgdl' ? 'mg/dL' : 'mmol/L'})</label>
-                  <input type="number" min="1" step="0.1" value={isf} onChange={(e) => setIsf(e.target.value)} className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white focus:outline-none focus:border-da-cyan" placeholder={units === 'mgdl' ? '50' : '2.8'} />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">Insulin On Board (units, optional)</label>
-                  <input type="number" min="0" step="0.1" value={iob} onChange={(e) => setIob(e.target.value)} className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white focus:outline-none focus:border-da-cyan" placeholder="0" />
-                </div>
+            <div>
+              <div className="text-xs uppercase tracking-wider font-bold text-white/60 mb-2">
+                Insulin Sensitivity Factor ({bgUnit} per unit)
               </div>
+              <div className="px-4 py-3 bg-da-darker/60 border border-white/10 rounded-md text-white/90 font-mono text-sm">
+                {activeISF > 0 ? activeISF.toFixed(2) : '—'} {bgUnit} / unit
+              </div>
+              <p className="text-white/40 text-xs mt-2">
+                {useCustomRatios ? 'From your custom ISF above.' : 'Auto-calculated from your TDD and insulin type.'}
+              </p>
             </div>
 
-            <Button type="submit" variant="gradient" size="lg" className="w-full">Calculate Dose →</Button>
-          </form>
-
-          <div className="lg:sticky lg:top-24 self-start">
-            {results ? (
-              <div className="bg-da-card-accent rounded-2xl p-8 md:p-10 space-y-6">
-                <h2 className="text-xl font-black uppercase tracking-wider text-white">Recommended Dose</h2>
-
-                <div className="bg-da-darker rounded-lg p-6 border border-da-gold/40 text-center">
-                  <div className="text-da-gold text-xs uppercase tracking-wider font-bold mb-2">Total Dose</div>
-                  <div className="text-6xl font-black text-white mb-1">{results.finalDose}<span className="text-2xl text-white/60"> u</span></div>
-                  <div className="text-white/50 text-sm">units of rapid-acting insulin</div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-da-darker/50 rounded-lg border border-white/5">
-                    <div>
-                      <div className="text-white text-sm font-bold">Meal Dose</div>
-                      <div className="text-white/40 text-xs">{carbs}g ÷ {icRatio} g/u</div>
-                    </div>
-                    <div className="text-2xl font-black text-da-cyan">{results.mealDose}u</div>
-                  </div>
-
-                  {results.correctionDose !== 0 && (
-                    <div className="flex justify-between items-center p-3 bg-da-darker/50 rounded-lg border border-white/5">
-                      <div>
-                        <div className="text-white text-sm font-bold">Correction Dose</div>
-                        <div className="text-white/40 text-xs">BG delta {results.bgDelta} ÷ ISF {isf}</div>
-                      </div>
-                      <div className={`text-2xl font-black ${results.correctionDose > 0 ? 'text-da-cyan' : 'text-red-400'}`}>{results.correctionDose > 0 ? '+' : ''}{results.correctionDose}u</div>
-                    </div>
-                  )}
-
-                  {results.iob > 0 && (
-                    <div className="flex justify-between items-center p-3 bg-da-darker/50 rounded-lg border border-white/5">
-                      <div>
-                        <div className="text-white text-sm font-bold">Subtract IOB</div>
-                        <div className="text-white/40 text-xs">Active insulin from prior dose</div>
-                      </div>
-                      <div className="text-2xl font-black text-red-400">−{results.iob}u</div>
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-white/40 text-xs leading-relaxed pt-4 border-t border-white/10">
-                  Pre-bolus by 10–20 minutes for high-carb meals to flatten the post-meal spike. Higher protein/fat meals may need extended/dual wave dosing. Always verify with your CDE.
+            <div className="pt-2">
+              <ResultBox
+                label="Insulin Dose to Correct Blood Glucose"
+                value={fmt(correctionDose)}
+                suffix="units"
+                accent="cyan"
+              />
+              {tooLow && (
+                <p className="text-red-400 text-xs text-center mt-3 font-bold">
+                  ⚠️ Current BG must be greater than target BG for a correction dose to be needed.
                 </p>
+              )}
+            </div>
+          </StepCard>
+
+          {/* ============== STEP 4: Total ============== */}
+          <StepCard stepNumber={4} title="Total Meal Time Dose">
+            <ResultBox
+              label="Total Insulin Dose"
+              value={fmt(totalDose)}
+              suffix="units"
+              accent="gold"
+            />
+            <InfoBox>
+              This is the total amount of insulin to:<br />
+              <strong className="text-da-cyan">a)</strong> cover the carbs in your meal, plus<br />
+              <strong className="text-da-cyan">b)</strong> correct your glucose to target range.
+            </InfoBox>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="bg-da-darker rounded-lg p-3 text-center border border-white/10">
+                <div className="text-da-cyan text-[10px] uppercase tracking-wider font-bold mb-1">
+                  Carb Coverage
+                </div>
+                <div className="text-xl font-black text-white">{fmt(carbDose)}<span className="text-xs text-white/50 ml-1">u</span></div>
               </div>
-            ) : (
-              <div className="bg-da-card rounded-2xl p-12 text-center border border-dashed border-white/10">
-                <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-3">Awaiting Inputs</div>
-                <p className="text-white/60">Enter your meal carbs and I:C ratio. Add BG inputs to include a correction dose.</p>
+              <div className="bg-da-darker rounded-lg p-3 text-center border border-white/10">
+                <div className="text-da-cyan text-[10px] uppercase tracking-wider font-bold mb-1">
+                  Correction
+                </div>
+                <div className="text-xl font-black text-white">{fmt(correctionDose)}<span className="text-xs text-white/50 ml-1">u</span></div>
               </div>
-            )}
+            </div>
+          </StepCard>
+
+          {/* Reset */}
+          <div className="flex justify-center pt-4">
+            <Button type="button" variant="outline" size="md" onClick={reset}>
+              Reset Calculator
+            </Button>
           </div>
+        </div>
+
+        {/* Disclaimer */}
+        <div className="max-w-3xl mx-auto mt-12 p-6 border border-white/10 rounded-2xl bg-da-darker/40">
+          <p className="text-white/50 text-xs leading-relaxed italic">
+            <strong className="text-da-gold not-italic">⚠️ Educational tool — not medical advice.</strong>{' '}
+            The Magic Ratio Calculator is intended for informational and educational purposes only. It is
+            not a substitute for professional medical advice, diagnosis, or treatment. Always consult your
+            healthcare provider or diabetes specialist before making any changes to your insulin regimen.
+            While this tool is designed to help you calculate potential <em>starting numbers</em>, you are
+            responsible for verifying all inputs and outputs before administering insulin. Diabetic Athletic
+            assumes no liability for any errors, inaccuracies, or consequences arising from the use of this
+            calculator.
+          </p>
         </div>
       </div>
     </div>
