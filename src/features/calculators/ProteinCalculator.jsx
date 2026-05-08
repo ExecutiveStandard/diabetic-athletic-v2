@@ -1,116 +1,235 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
 
-// Protein target ranges in g per kg of LEAN BODY MASS (more accurate than total weight,
-// especially for users with higher body fat). Source: International Society of Sports
-// Nutrition position stand + Helms et al. systematic reviews.
-const GOALS = [
+// =============================================================================
+// Original Diabetic Athletic protein calculator — ported faithfully from the
+// GoHighLevel script. All math operates on weight in POUNDS regardless of the
+// units toggle (kg → lbs conversion applied first). Body fat % is from a
+// 5–60% slider. The plant-based dropdown is captured for parity with the
+// original but is NOT used in the calculation (mirrors the original behaviour).
+// =============================================================================
+
+const AGE_RANGES = [
+  { id: 'age34', label: '< 34' },
+  { id: 'age35', label: '35 – 60' },
+  { id: 'age61', label: '61+' },
+]
+
+const WORKOUT_HOURS = [
+  { id: 'hours0', label: '0 – 1' },
+  { id: 'hours1', label: '1 – 3' },
+  { id: 'hours4', label: '4 – 6' },
+  { id: 'hours7', label: '7+' },
+]
+
+// Original Diabetic Athletic body-fat reference images (hosted on the
+// MyClickFunnels CDN — same URLs used in the GHL widget).
+const BODY_FAT_IMAGES = {
+  male:   'https://statics.myclickfunnels.com/workspace/JELxgK/image/3795379/file/174198207fb42981ce293b7d0c1eb1fb.png',
+  female: 'https://statics.myclickfunnels.com/workspace/JELxgK/image/3795382/file/9234b73ede43e6798d40f03e0caa533c.png',
+}
+
+// =============================================================================
+// MATH — straight port of the original protein_intake() function
+// =============================================================================
+function calcProtein({ gender, weight_lbs, age, hours, bodyFatPct }) {
+  if (!weight_lbs || weight_lbs <= 0) return null
+
+  const w = Number(weight_lbs)
+  const body_fat_factor = 1 - (bodyFatPct / 100)
+
+  const minimum = 0.8 * w * 1.0 * body_fat_factor * 1.0
+  const maximum = minimum * 1.5
+
+  let optimal_base = (minimum + maximum) / 2
+
+  if (gender === 'male') {
+    let plus = 0
+    if (age === 'age35') plus = Math.ceil((w + 40) / 40)
+    else if (age === 'age61') plus = Math.ceil((w + 18) / 18)
+
+    let more_plus = 0
+    if (hours === 'hours1')      more_plus = Math.ceil((w + 33.5) / 36)
+    else if (hours === 'hours4') more_plus = Math.ceil((w + 17) / 19)
+    else if (hours === 'hours7') more_plus = Math.ceil((w + 8.5) / 10)
+
+    optimal_base = optimal_base + plus + more_plus
+  } else {
+    // female
+    let minus = 0
+    if (age === 'age34')      minus = Math.ceil(w / 50)
+    else if (age === 'age35') minus = Math.ceil(w / 100) * -1
+    else if (age === 'age61') minus = Math.ceil(w / 50) * -2
+
+    let more_plus = 0
+    if (hours === 'hours1') {
+      const b = Math.ceil(w / 50)
+      more_plus = 1 * 1 * (b * 2)
+    } else if (hours === 'hours4') {
+      const b = Math.ceil(w / 50)
+      more_plus = 1 * 1.5 * (b * 2)
+    } else if (hours === 'hours7') {
+      const b = Math.ceil(w / 50)
+      more_plus = 1 * 2 * (b * 2)
+    }
+
+    optimal_base = optimal_base - minus + more_plus
+  }
+
+  return {
+    minimum: Math.round(minimum),
+    maximum: Math.round(maximum),
+    optimal: Math.round(optimal_base),
+  }
+}
+
+// =============================================================================
+// FAQ DATA
+// =============================================================================
+const FAQS = [
   {
-    id: 'cut',
-    label: 'Fat Loss / Cut',
-    range: [2.3, 3.1],
-    desc: 'Preserve muscle in a calorie deficit. Higher protein offsets muscle loss.',
+    q: 'Why is my protein goal higher for fat loss than it is for building muscle?',
+    a: (
+      <>
+        Protein serves two main purposes when it comes to body composition change: physiological & lifestyle.
+        After a certain point, adding more protein to your diet won't increase how much muscle you can build —
+        but there are several important benefits that come from going past that point when your goal is weight loss:
+        <ul className="list-disc list-inside mt-3 space-y-1 text-white/80">
+          <li>Decreased hunger and cravings in a calorie deficit</li>
+          <li>Less mood disturbances, stress, and fatigue</li>
+          <li>Increased metabolism (via TEF)</li>
+          <li>More muscle mass retained during fat loss</li>
+        </ul>
+        <p className="mt-3">Protein isn't just for gym bros!</p>
+      </>
+    ),
   },
   {
-    id: 'maintain',
-    label: 'Maintenance',
-    range: [1.8, 2.2],
-    desc: 'Hold lean mass, recover well, support training.',
+    q: 'How much protein can I absorb in one sitting?',
+    a: (
+      <>
+        Have you heard you can only absorb 30g of protein at once? That's a myth. Researchers concluded that
+        "virtually all ingested protein is absorbed by healthy humans."
+        <p className="mt-3">
+          However, there's a limit to how much protein contributes to muscle protein synthesis (MPS), usually
+          20–40g+ depending on factors like size, muscle mass, and age.
+        </p>
+        <p className="mt-3">
+          Focus on your <strong className="text-da-cyan">total daily protein intake</strong>, not just how much
+          you get per meal.
+        </p>
+      </>
+    ),
   },
   {
-    id: 'bulk',
-    label: 'Muscle Gain / Bulk',
-    range: [2.0, 2.5],
-    desc: 'Build new muscle tissue efficiently in a surplus.',
+    q: "That's a big number… How can I get that much protein in my diet?",
+    a: (
+      <>
+        Find the best protein sources you enjoy and structure your meals around them.
+        <p className="mt-3">Check out the resources section for our list of best protein sources.</p>
+        <p className="mt-3">
+          Or watch my protein presentation called{' '}
+          <strong className="text-da-cyan">"20 Ways to Get More Protein in Your Diet"</strong>!
+        </p>
+      </>
+    ),
   },
   {
-    id: 'athlete',
-    label: 'High-Performance Athlete',
-    range: [2.5, 3.3],
-    desc: 'Heavy training volume, fast recovery, peak adaptation.',
+    q: 'What happens if I eat more than my "Max Protein" goal?',
+    a: (
+      <>
+        Think of your max protein goal as a guideline, not a hard limit. While eating beyond your max protein
+        goal won't provide extra benefits, it's not harmful either.
+        <p className="mt-3">
+          Excess protein won't automatically turn into fat unless{' '}
+          <strong className="text-da-cyan">total calorie intake</strong> exceeds energy expenditure.
+        </p>
+        <p className="mt-3">
+          If you love protein, eat more! Just track <strong className="text-da-cyan">total calories</strong> for
+          fat loss or muscle gain.
+        </p>
+      </>
+    ),
+  },
+  {
+    q: 'Are protein shakes the same as food to help me hit my goal?',
+    a: (
+      <>
+        Short answer: <strong className="text-da-cyan">Yes.</strong>
+        <p className="mt-3">
+          Long answer: <strong className="text-da-cyan">Kinda…</strong>
+        </p>
+        <p className="mt-3">
+          Whey protein is one of the highest-quality proteins you can consume, but it shouldn't replace whole foods.
+        </p>
+        <p className="mt-3">
+          Protein supplements are <strong className="text-da-cyan">just that — supplements</strong>. Use them
+          wisely, but prioritize whole foods.
+        </p>
+      </>
+    ),
   },
 ]
 
-// Body fat estimation reference, gender-specific.
-// Each entry covers a range and describes what that level typically looks like.
-const BODY_FAT_REFERENCE = {
-  male: [
-    { value: 8,  range: '6–9%',   label: 'Competition',   desc: 'Striated, vascular, paper-thin skin. Stage-ready.' },
-    { value: 12, range: '10–14%', label: 'Athletic',      desc: 'Abs clearly visible, vascularity in arms.' },
-    { value: 17, range: '15–19%', label: 'Lean / Fit',    desc: 'Some ab definition, lean overall.' },
-    { value: 22, range: '20–24%', label: 'Average',       desc: 'No visible abs, slight softness around midsection.' },
-    { value: 27, range: '25–29%', label: 'Above Average', desc: 'Softer waist, no muscle definition visible.' },
-    { value: 33, range: '30%+',   label: 'High',          desc: 'Larger waist, fat distributed across body.' },
-  ],
-  female: [
-    { value: 16, range: '14–17%', label: 'Competition',   desc: 'Visible muscle striation. Stage-ready (very low for women).' },
-    { value: 20, range: '18–22%', label: 'Athletic',      desc: 'Abs visible, defined arms and legs.' },
-    { value: 25, range: '23–27%', label: 'Fit',           desc: 'Lean, toned, slight ab outline.' },
-    { value: 30, range: '28–32%', label: 'Average',       desc: 'Healthy curves, no visible abs.' },
-    { value: 35, range: '33–37%', label: 'Above Average', desc: 'Softer overall, fuller hips and thighs.' },
-    { value: 40, range: '38%+',   label: 'High',          desc: 'Higher fat distribution across all areas.' },
-  ],
+function FAQItem({ faq }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="border-b border-white/10 last:border-b-0">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full text-left flex items-center justify-between gap-4 py-5 group"
+      >
+        <span className="text-white font-bold text-base md:text-lg leading-tight group-hover:text-da-cyan transition">
+          {faq.q}
+        </span>
+        <span
+          className={`text-da-gold text-2xl font-black transition-transform ${open ? 'rotate-45' : ''}`}
+          aria-hidden
+        >
+          +
+        </span>
+      </button>
+      {open && (
+        <div className="pb-5 text-white/70 text-sm md:text-base leading-relaxed">
+          {faq.a}
+        </div>
+      )}
+    </div>
+  )
 }
 
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 export default function ProteinCalculator() {
-  const [gender, setGender] = useState('male')
-  const [units, setUnits] = useState('metric')
-  const [weight, setWeight] = useState('')
-  const [bodyFat, setBodyFat] = useState('')
-  const [goal, setGoal] = useState('maintain')
-  const [meals, setMeals] = useState(4)
-  const [results, setResults] = useState(null)
+  // Original defaults: lbs, male, age <34, body fat 20%, hours 0-1, plant-based No
+  const [units, setUnits]         = useState('lbs')
+  const [gender, setGender]       = useState('male')
+  const [weight, setWeight]       = useState('')
+  const [age, setAge]             = useState('age34')
+  const [bodyFat, setBodyFat]     = useState(20)
+  const [hours, setHours]         = useState('hours0')
+  const [plantBased, setPlantBased] = useState('0')
 
-  const calculate = (e) => {
-    e.preventDefault()
+  // Always work in lbs internally (matches original)
+  const weight_lbs = useMemo(() => {
+    const w = parseFloat(weight)
+    if (!w) return 0
+    if (w > 560) return 0  // matches original validation
+    return units === 'kgs' ? w * 2.20462 : w
+  }, [weight, units])
 
-    const weightKg = units === 'metric'
-      ? parseFloat(weight)
-      : parseFloat(weight) * 0.453592
-    const bf = parseFloat(bodyFat)
-
-    if (!weightKg || !bf) {
-      alert('Please enter your weight and body fat percentage')
-      return
-    }
-    if (bf < 3 || bf > 60) {
-      alert('Body fat % should be between 3 and 60')
-      return
-    }
-
-    const lbmKg = weightKg * (1 - bf / 100)
-    const goalData = GOALS.find((g) => g.id === goal)
-    const lowG = Math.round(lbmKg * goalData.range[0])
-    const highG = Math.round(lbmKg * goalData.range[1])
-    const targetG = Math.round(
-      lbmKg * ((goalData.range[0] + goalData.range[1]) / 2)
-    )
-    const fatMassKg = weightKg - lbmKg
-
-    setResults({
-      weightKg: Math.round(weightKg * 10) / 10,
-      lbmKg: Math.round(lbmKg * 10) / 10,
-      lbmLbs: Math.round(lbmKg * 2.20462 * 10) / 10,
-      fatMassKg: Math.round(fatMassKg * 10) / 10,
-      bodyFat: bf,
-      low: lowG,
-      target: targetG,
-      high: highG,
-      perMeal: Math.round(targetG / meals),
-      meals,
-      goalLabel: goalData.label,
-      kcal: Math.round(targetG * 4),
-    })
-  }
+  const result = useMemo(
+    () => calcProtein({ gender, weight_lbs, age, hours, bodyFatPct: bodyFat }),
+    [gender, weight_lbs, age, hours, bodyFat]
+  )
 
   const reset = () => {
-    setWeight('')
-    setBodyFat('')
-    setResults(null)
+    setUnits('lbs'); setGender('male'); setWeight(''); setAge('age34')
+    setBodyFat(20); setHours('hours0'); setPlantBased('0')
   }
-
-  const reference = BODY_FAT_REFERENCE[gender]
 
   return (
     <div className="bg-da-dark bg-dots min-h-screen">
@@ -127,37 +246,52 @@ export default function ProteinCalculator() {
             💪 Protein Calculator
           </p>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-black uppercase leading-[1.1] text-white mb-6">
-            Daily <span className="text-da-gold">Protein</span> Target
+            The Diabetic Athletic <span className="text-da-gold">Protein</span> Calculator
           </h1>
           <p className="text-white/70 max-w-2xl mx-auto text-base md:text-lg">
-            Body-fat-adjusted calculation using <span className="text-da-cyan font-bold">Lean Body Mass</span> — the
-            gold standard for accuracy, especially if you carry extra body fat.
+            Use this free protein calculator to learn how much protein you should eat each day to achieve your goals.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Form */}
-          <form
-            onSubmit={calculate}
-            className="bg-da-card rounded-2xl p-8 md:p-10 space-y-6"
-          >
-            <h2 className="text-xl font-black uppercase tracking-wider text-white mb-2">
-              Your Stats
-            </h2>
-
-            {/* Gender */}
+        <div className="max-w-3xl mx-auto bg-da-card rounded-2xl p-8 md:p-12 space-y-8">
+          {/* ============== Imperial / Metric ============== */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                Gender
+                Imperial / Metric *
+              </label>
+              <div className="grid grid-cols-2 gap-2 bg-da-darker rounded-md p-1">
+                <button
+                  type="button"
+                  onClick={() => setUnits('lbs')}
+                  className={`py-2 rounded text-sm font-bold uppercase transition ${
+                    units === 'lbs' ? 'bg-da-cyan text-da-dark' : 'text-white/60'
+                  }`}
+                >
+                  Lbs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUnits('kgs')}
+                  className={`py-2 rounded text-sm font-bold uppercase transition ${
+                    units === 'kgs' ? 'bg-da-cyan text-da-dark' : 'text-white/60'
+                  }`}
+                >
+                  Kgs
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                Gender *
               </label>
               <div className="grid grid-cols-2 gap-2 bg-da-darker rounded-md p-1">
                 <button
                   type="button"
                   onClick={() => setGender('male')}
                   className={`py-2 rounded text-sm font-bold uppercase transition ${
-                    gender === 'male'
-                      ? 'bg-da-cyan text-da-dark'
-                      : 'text-white/60'
+                    gender === 'male' ? 'bg-da-cyan text-da-dark' : 'text-white/60'
                   }`}
                 >
                   Male
@@ -166,352 +300,206 @@ export default function ProteinCalculator() {
                   type="button"
                   onClick={() => setGender('female')}
                   className={`py-2 rounded text-sm font-bold uppercase transition ${
-                    gender === 'female'
-                      ? 'bg-da-cyan text-da-dark'
-                      : 'text-white/60'
+                    gender === 'female' ? 'bg-da-cyan text-da-dark' : 'text-white/60'
                   }`}
                 >
                   Female
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* Units */}
-            <div>
-              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                Units
-              </label>
-              <div className="grid grid-cols-2 gap-2 bg-da-darker rounded-md p-1">
+          {/* ============== Weight ============== */}
+          <div>
+            <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+              Weight ({units}) *
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="560"
+              step="0.1"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              placeholder={units === 'lbs' ? 'e.g. 165' : 'e.g. 75'}
+              className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+            />
+          </div>
+
+          {/* ============== Age Range ============== */}
+          <div>
+            <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+              Age Range *
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {AGE_RANGES.map((a) => (
                 <button
+                  key={a.id}
                   type="button"
-                  onClick={() => setUnits('metric')}
-                  className={`py-2 rounded text-sm font-bold uppercase transition ${
-                    units === 'metric'
-                      ? 'bg-da-cyan text-da-dark'
-                      : 'text-white/60'
+                  onClick={() => setAge(a.id)}
+                  className={`py-3 rounded-md text-sm font-bold uppercase transition border ${
+                    age === a.id
+                      ? 'bg-da-cyan text-da-dark border-da-cyan'
+                      : 'bg-da-darker text-white/70 border-white/10 hover:border-white/30'
                   }`}
                 >
-                  Metric
+                  {a.label}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setUnits('imperial')}
-                  className={`py-2 rounded text-sm font-bold uppercase transition ${
-                    units === 'imperial'
-                      ? 'bg-da-cyan text-da-dark'
-                      : 'text-white/60'
-                  }`}
-                >
-                  Imperial
-                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ============== Body Fat % Slider ============== */}
+          <div>
+            <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-1">
+              Body Fat Percentage
+            </label>
+            <p className="text-white/50 text-xs mb-4">
+              Use the picture below to help estimate.
+            </p>
+
+            {/* Slider */}
+            <div className="relative pt-8 pb-2">
+              <div
+                className="absolute -top-1 transform -translate-x-1/2 px-3 py-1 rounded-md bg-da-gradient text-da-dark text-xs font-black"
+                style={{ left: `${((bodyFat - 5) / (60 - 5)) * 100}%` }}
+              >
+                {bodyFat}%
               </div>
-            </div>
-
-            {/* Weight */}
-            <div>
-              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                Body Weight ({units === 'metric' ? 'kg' : 'lbs'})
-              </label>
-              <input
-                type="number"
-                min="20"
-                max="500"
-                step="0.1"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                required
-                className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-                placeholder={units === 'metric' ? '75' : '165'}
-              />
-            </div>
-
-            {/* Body Fat % */}
-            <div>
-              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                Body Fat % <span className="text-da-cyan normal-case font-normal">(use chart below to estimate)</span>
-              </label>
-              <input
-                type="number"
-                min="3"
-                max="60"
-                step="0.1"
-                value={bodyFat}
-                onChange={(e) => setBodyFat(e.target.value)}
-                required
-                className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-                placeholder={gender === 'male' ? '15' : '25'}
-              />
-              <p className="text-white/40 text-xs mt-2">
-                If you have a DEXA / InBody scan, use that. Otherwise estimate from the visual reference below.
-              </p>
-            </div>
-
-            {/* Goal */}
-            <div>
-              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-3">
-                Goal
-              </label>
-              <div className="space-y-2">
-                {GOALS.map((g) => (
-                  <label
-                    key={g.id}
-                    className={`flex items-start gap-3 p-3 rounded-md cursor-pointer transition border ${
-                      goal === g.id
-                        ? 'bg-da-cyan/15 border-da-cyan/50'
-                        : 'bg-da-darker border-white/10 hover:border-white/30'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="goal"
-                      checked={goal === g.id}
-                      onChange={() => setGoal(g.id)}
-                      className="mt-1 accent-da-cyan"
-                    />
-                    <div>
-                      <div className="text-white font-bold text-sm">{g.label}</div>
-                      <div className="text-white/50 text-xs">
-                        {g.range[0]}–{g.range[1]} g/kg LBM · {g.desc}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Meals slider */}
-            <div>
-              <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                Meals per Day:{' '}
-                <span className="text-da-cyan">{meals}</span>
-              </label>
               <input
                 type="range"
-                min="2"
-                max="6"
-                value={meals}
-                onChange={(e) => setMeals(parseInt(e.target.value))}
-                className="w-full accent-da-cyan"
+                min="5"
+                max="60"
+                step="1"
+                value={bodyFat}
+                onChange={(e) => setBodyFat(parseInt(e.target.value))}
+                className="w-full accent-da-cyan h-2"
               />
-              <div className="flex justify-between text-xs text-white/40 mt-1">
-                <span>2</span>
-                <span>6</span>
+              <div className="flex justify-between text-xs text-white/40 mt-2">
+                <span>5%</span>
+                <span>60%</span>
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" variant="gradient" size="lg" className="flex-1">
-                Calculate →
-              </Button>
-              <Button type="button" variant="outline" size="lg" onClick={reset}>
-                Reset
-              </Button>
+            {/* Reference image */}
+            <div className="mt-6 bg-da-darker rounded-lg p-4 border border-white/5 flex items-center justify-center">
+              <img
+                src={BODY_FAT_IMAGES[gender]}
+                alt={`${gender} body fat percentage reference chart`}
+                className="max-w-full h-auto rounded"
+                style={{ maxHeight: '320px' }}
+              />
             </div>
-          </form>
+          </div>
 
-          {/* Results */}
-          <div className="lg:sticky lg:top-24 self-start">
-            {results ? (
-              <div className="bg-da-card-accent rounded-2xl p-8 md:p-10 space-y-6">
-                <h2 className="text-xl font-black uppercase tracking-wider text-white">
-                  Your Protein Plan
-                </h2>
+          {/* ============== Workout Hours ============== */}
+          <div>
+            <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+              How many hours do you work out each week? *
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {WORKOUT_HOURS.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  onClick={() => setHours(h.id)}
+                  className={`py-3 rounded-md text-sm font-bold uppercase transition border ${
+                    hours === h.id
+                      ? 'bg-da-cyan text-da-dark border-da-cyan'
+                      : 'bg-da-darker text-white/70 border-white/10 hover:border-white/30'
+                  }`}
+                >
+                  {h.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-                {/* LBM breakdown */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-da-darker rounded-lg p-3 text-center border border-white/10">
-                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
-                      Total Weight
-                    </div>
-                    <div className="text-xl font-black text-white">
-                      {results.weightKg}
-                      <span className="text-xs text-white/60"> kg</span>
-                    </div>
-                  </div>
-                  <div className="bg-da-darker rounded-lg p-3 text-center border border-da-gold/40">
-                    <div className="text-da-gold text-xs uppercase tracking-wider font-bold mb-1">
-                      Lean Body Mass
-                    </div>
-                    <div className="text-xl font-black text-white">
-                      {results.lbmKg}
-                      <span className="text-xs text-white/60"> kg</span>
-                    </div>
-                  </div>
-                  <div className="bg-da-darker rounded-lg p-3 text-center border border-white/10">
-                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
-                      Fat Mass
-                    </div>
-                    <div className="text-xl font-black text-white">
-                      {results.fatMassKg}
-                      <span className="text-xs text-white/60"> kg</span>
-                    </div>
-                  </div>
+          {/* ============== Plant-Based Diet ============== */}
+          <div>
+            <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-1">
+              Do you eat a mostly plant-based diet? *
+            </label>
+            <p className="text-white/50 text-xs mb-3">
+              If 90%+ of food comes from plant-based sources
+            </p>
+            <select
+              value={plantBased}
+              onChange={(e) => setPlantBased(e.target.value)}
+              className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white focus:outline-none focus:border-da-cyan transition"
+            >
+              <option value="0">No</option>
+              <option value="1">Yes</option>
+            </select>
+          </div>
+
+          {/* ============== Results ============== */}
+          <div className="pt-4 border-t border-white/10">
+            <h2 className="text-da-cyan uppercase tracking-widest text-sm font-bold mb-5">
+              Protein Goals:
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-da-darker rounded-lg p-5 text-center border border-white/15">
+                <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-2">
+                  Minimum
                 </div>
-
-                {/* Daily target */}
-                <div className="bg-da-darker rounded-lg p-6 border border-da-gold/40 text-center">
-                  <div className="text-da-gold text-xs uppercase tracking-wider font-bold mb-2">
-                    Daily Target ({results.goalLabel})
-                  </div>
-                  <div className="text-5xl md:text-6xl font-black text-white mb-1">
-                    {results.target}
-                    <span className="text-2xl text-white/60">g</span>
-                  </div>
-                  <div className="text-white/50 text-sm">
-                    Range: {results.low}g – {results.high}g
-                  </div>
-                  <div className="text-white/40 text-xs mt-2">
-                    Calculated from {results.lbmKg} kg LBM ({results.bodyFat}% body fat)
-                  </div>
+                <div className="text-4xl md:text-5xl font-black text-white">
+                  {result ? result.minimum : '—'}
+                  <span className="text-base text-white/50 font-bold normal-case ml-1">g/day</span>
                 </div>
-
-                {/* Per-meal + calories */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-da-darker rounded-lg p-4 border border-white/10 text-center">
-                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
-                      Per Meal
-                    </div>
-                    <div className="text-2xl font-black text-white">
-                      {results.perMeal}g
-                    </div>
-                    <div className="text-white/40 text-xs">
-                      across {results.meals} meals
-                    </div>
-                  </div>
-                  <div className="bg-da-darker rounded-lg p-4 border border-white/10 text-center">
-                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
-                      Calories
-                    </div>
-                    <div className="text-2xl font-black text-white">
-                      {results.kcal.toLocaleString()}
-                    </div>
-                    <div className="text-white/40 text-xs">
-                      from protein only
-                    </div>
-                  </div>
-                </div>
-
-                {/* Real-food equivalents */}
-                <div className="pt-4 border-t border-white/10">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-white/70 mb-3">
-                    Real-Food Equivalents (per day)
-                  </h3>
-                  <div className="space-y-2 text-sm text-white/60">
-                    <div className="flex justify-between">
-                      <span>Chicken breast</span>
-                      <span className="text-white">
-                        ~{Math.round(results.target / 0.31)}g raw
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Whey protein scoops</span>
-                      <span className="text-white">
-                        ~{Math.round(results.target / 25)} scoops
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Large eggs</span>
-                      <span className="text-white">
-                        ~{Math.round(results.target / 6)} eggs
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-white/40 text-xs leading-relaxed pt-4 border-t border-white/10">
-                  💡 Distribute evenly across meals for max muscle protein synthesis. T1Ds: protein has a small but
-                  real impact on BG over 3–5 hours — log meals and watch the late post-meal trace.
-                </p>
               </div>
-            ) : (
-              <div className="bg-da-card rounded-2xl p-12 text-center border border-dashed border-white/10">
-                <div className="text-6xl mb-4">🥩</div>
-                <p className="text-white/60">
-                  Fill in your stats and body fat % to get a precision protein target based on Lean Body Mass.
-                </p>
+              <div className="bg-da-darker rounded-lg p-5 text-center border border-white/15">
+                <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-2">
+                  Maximum
+                </div>
+                <div className="text-4xl md:text-5xl font-black text-white">
+                  {result ? result.maximum : '—'}
+                  <span className="text-base text-white/50 font-bold normal-case ml-1">g/day</span>
+                </div>
               </div>
-            )}
+            </div>
+
+            <div className="bg-gradient-to-br from-da-cyan/10 to-da-gold/10 border-2 border-da-gold/40 rounded-lg p-6 text-center">
+              <div className="text-da-gold text-xs uppercase tracking-wider font-bold mb-2">
+                Optimal Intake
+              </div>
+              <div className="text-5xl md:text-7xl font-black text-white">
+                {result ? result.optimal : '—'}
+                <span className="text-base text-white/50 font-bold normal-case ml-2">g/day</span>
+              </div>
+            </div>
+
+            <p className="text-white/40 text-xs mt-4">
+              * make sure none of the above categories are left blank as that will throw off the final numbers
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-white/10">
+            <Button type="button" variant="gradient" size="lg" className="flex-1">
+              Send My Personalized Plan →
+            </Button>
+            <Button type="button" variant="outline" size="lg" onClick={reset}>
+              Reset
+            </Button>
           </div>
         </div>
 
-        {/* Body Fat Visual Reference Chart */}
-        <div className="max-w-6xl mx-auto mt-16 md:mt-20">
+        {/* ============== FAQ ============== */}
+        <div className="max-w-3xl mx-auto mt-16">
           <div className="text-center mb-10">
             <p className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-2">
-              Visual Reference
+              Frequently Asked
             </p>
-            <h2 className="text-3xl md:text-4xl font-black uppercase text-white mb-3">
-              Body Fat % <span className="text-da-gold">Estimation Guide</span>
+            <h2 className="text-3xl md:text-4xl font-black uppercase text-white">
+              Protein <span className="text-da-gold">FAQs</span>
             </h2>
-            <p className="text-white/60 text-sm md:text-base max-w-xl mx-auto">
-              Compare yourself to the descriptions below to estimate your body fat. Click any card to use that value.
-            </p>
           </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {reference.map((ref) => {
-              const isSelected = parseFloat(bodyFat) === ref.value
-              return (
-                <button
-                  key={ref.range}
-                  type="button"
-                  onClick={() => setBodyFat(String(ref.value))}
-                  className={`text-left bg-da-card rounded-xl p-5 hover-lift transition border ${
-                    isSelected
-                      ? 'border-da-cyan ring-2 ring-da-cyan/40'
-                      : 'border-white/10 hover:border-da-cyan/40'
-                  }`}
-                >
-                  <div className="aspect-square mb-3 flex items-center justify-center bg-gradient-to-br from-da-cyan/10 to-da-gold/10 rounded-lg border border-white/5">
-                    {/* Simple silhouette built from CSS */}
-                    <svg
-                      viewBox="0 0 60 100"
-                      className="h-20 text-white/60"
-                      fill="currentColor"
-                    >
-                      {gender === 'male' ? (
-                        // Male silhouette: broader shoulders, V-taper that softens at higher BF
-                        <path
-                          d={
-                            ref.value <= 12
-                              ? 'M30 8 a6 6 0 1 0 0.1 0 z M22 18 L38 18 L46 36 L40 54 L40 92 L34 92 L34 70 L30 70 L26 70 L26 92 L20 92 L20 54 L14 36 Z'
-                              : ref.value <= 22
-                              ? 'M30 8 a6.5 6.5 0 1 0 0.1 0 z M21 18 L39 18 L47 38 L42 58 L42 92 L34 92 L34 72 L30 72 L26 72 L26 92 L18 92 L18 58 L13 38 Z'
-                              : ref.value <= 30
-                              ? 'M30 8 a7 7 0 1 0 0.1 0 z M20 18 L40 18 L48 40 L46 60 L46 92 L34 92 L34 72 L30 72 L26 72 L26 92 L14 92 L14 60 L12 40 Z'
-                              : 'M30 8 a7.5 7.5 0 1 0 0.1 0 z M19 18 L41 18 L50 42 L50 64 L48 92 L34 92 L34 72 L30 72 L26 72 L26 92 L12 92 L10 64 L10 42 Z'
-                          }
-                        />
-                      ) : (
-                        // Female silhouette: narrower waist, fuller hips that broaden at higher BF
-                        <path
-                          d={
-                            ref.value <= 20
-                              ? 'M30 8 a6 6 0 1 0 0.1 0 z M22 18 L38 18 L42 36 L34 50 L40 70 L38 92 L32 92 L31 70 L30 70 L29 70 L28 92 L22 92 L20 70 L26 50 L18 36 Z'
-                              : ref.value <= 30
-                              ? 'M30 8 a6.5 6.5 0 1 0 0.1 0 z M22 18 L38 18 L42 36 L36 50 L44 72 L40 92 L33 92 L31 72 L30 72 L29 72 L27 92 L20 92 L16 72 L24 50 L18 36 Z'
-                              : ref.value <= 36
-                              ? 'M30 8 a7 7 0 1 0 0.1 0 z M21 18 L39 18 L43 38 L38 52 L48 74 L42 92 L33 92 L31 74 L30 74 L29 74 L27 92 L18 92 L12 74 L22 52 L17 38 Z'
-                              : 'M30 8 a7.5 7.5 0 1 0 0.1 0 z M20 18 L40 18 L44 40 L40 54 L52 76 L44 92 L33 92 L31 76 L30 76 L29 76 L27 92 L16 92 L8 76 L20 54 L16 40 Z'
-                          }
-                        />
-                      )}
-                    </svg>
-                  </div>
-                  <div className="text-da-gold text-xs uppercase tracking-wider font-bold mb-1">
-                    {ref.range}
-                  </div>
-                  <div className="text-white text-sm font-bold mb-1">{ref.label}</div>
-                  <div className="text-white/50 text-xs leading-relaxed">{ref.desc}</div>
-                </button>
-              )
-            })}
+          <div className="bg-da-card rounded-2xl px-6 md:px-10">
+            {FAQS.map((faq, i) => (
+              <FAQItem key={i} faq={faq} />
+            ))}
           </div>
-
-          <p className="text-white/40 text-xs text-center mt-6 max-w-2xl mx-auto">
-            These visual estimates are approximate. For precise numbers use a DEXA scan, BodPod, or InBody. Tape and
-            caliper methods can vary by ±3–5%.
-          </p>
         </div>
       </div>
     </div>
