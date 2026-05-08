@@ -485,6 +485,31 @@ export default function ProteinCalculator() {
           </div>
         </div>
 
+        {/* ============== Protein Source Guide ============== */}
+        <div className="max-w-5xl mx-auto mt-16">
+          <div className="text-center mb-10">
+            <p className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-2">
+              Best Protein Sources
+            </p>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase text-white mb-4">
+              What to <span className="text-da-gold">Eat</span>
+            </h2>
+            <p className="text-white/60 max-w-2xl mx-auto text-sm md:text-base">
+              Use this quick reference to choose the highest-quality protein sources for your goals.
+              Prioritize the green column, enjoy the orange column in moderation, and minimize the red.
+            </p>
+          </div>
+
+          <div className="bg-da-card rounded-2xl p-4 md:p-6 overflow-hidden">
+            <img
+              src="/images/protein-display-card.png"
+              alt="Diabetic Athletic protein source guide — Eat More, Eat Some, Eat Less"
+              className="w-full h-auto rounded-lg"
+              loading="lazy"
+            />
+          </div>
+        </div>
+
         {/* ============== FAQ ============== */}
         <div className="max-w-3xl mx-auto mt-16">
           <div className="text-center mb-10">
