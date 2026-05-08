@@ -201,6 +201,116 @@ function FAQItem({ faq }) {
 }
 
 // =============================================================================
+// PROTEIN SOURCE GUIDE — native (replaces static infographic image)
+// 3-column responsive guide: EAT MORE / EAT SOME / EAT LESS
+// =============================================================================
+const PROTEIN_SOURCES = {
+  more: {
+    headline: 'Eat More',
+    accent: 'from-emerald-500 to-emerald-600',
+    border: 'border-emerald-500/40',
+    glow: 'shadow-emerald-500/20',
+    items: [
+      { icon: '🥚', name: 'Eggs & egg whites' },
+      { icon: '🐟', name: 'Fish' },
+      { icon: '🦞', name: 'Shellfish' },
+      { icon: '🍗', name: 'Chicken' },
+      { icon: '🦆', name: 'Duck breast & thigh' },
+      { icon: '🦃', name: 'Turkey' },
+      { icon: '🥩', name: 'Lean beef' },
+      { icon: '🥛', name: 'Plain Greek yoghurt' },
+      { icon: '🌱', name: 'Tempeh' },
+      { icon: '🧀', name: 'Cultured cottage cheese' },
+      { icon: '💪', name: 'Protein powder (isolate)' },
+    ],
+  },
+  some: {
+    headline: 'Eat Some',
+    accent: 'from-da-gold to-amber-500',
+    border: 'border-da-gold/40',
+    glow: 'shadow-da-gold/20',
+    items: [
+      { icon: '🧀', name: 'Uncultured cottage cheese' },
+      { icon: '🥩', name: 'Medium-lean meats' },
+      { icon: '🍱', name: 'Tofu' },
+      { icon: '🫘', name: 'Edamame beans' },
+      { icon: '🥓', name: 'Canadian bacon' },
+      { icon: '🥩', name: 'Beef jerky / biltong' },
+      { icon: '🐑', name: 'Lamb' },
+      { icon: '🥓', name: 'Minimally processed deli meat' },
+      { icon: '🌭', name: 'Poultry sausage' },
+      { icon: '🫘', name: 'Lentils & beans' },
+    ],
+  },
+  less: {
+    headline: 'Eat Less',
+    accent: 'from-red-500 to-red-600',
+    border: 'border-red-500/40',
+    glow: 'shadow-red-500/20',
+    items: [
+      { icon: '🍳', name: 'Fried meats' },
+      { icon: '🍗', name: 'Chicken fingers / nuggets / wings' },
+      { icon: '🐟', name: 'Fish fingers / schnitzels' },
+      { icon: '🥩', name: 'High-fat meat' },
+      { icon: '🌭', name: 'High-fat sausages' },
+      { icon: '🍱', name: 'Processed soy products' },
+      { icon: '🥩', name: 'Processed deli meats' },
+      { icon: '🍫', name: 'Protein bars' },
+    ],
+  },
+}
+
+function SourceColumn({ data }) {
+  return (
+    <div className={`bg-da-darker rounded-xl border ${data.border} overflow-hidden flex flex-col h-full shadow-lg ${data.glow}`}>
+      <div className={`bg-gradient-to-r ${data.accent} px-5 py-4`}>
+        <h3 className="text-da-dark font-black uppercase tracking-wider text-center text-base md:text-lg">
+          {data.headline}
+        </h3>
+      </div>
+      <ul className="p-5 space-y-3 flex-1">
+        {data.items.map((item, i) => (
+          <li key={i} className="flex items-center gap-3 text-white/85 text-sm leading-snug">
+            <span className="text-2xl flex-shrink-0 w-8 text-center" aria-hidden>{item.icon}</span>
+            <span>{item.name}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function ProteinSourceGuide() {
+  return (
+    <div className="max-w-6xl mx-auto mt-16">
+      <div className="text-center mb-10">
+        <p className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-2">
+          Best Protein Sources
+        </p>
+        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase text-white mb-4">
+          What to <span className="text-da-gold">Eat</span>
+        </h2>
+        <p className="text-white/60 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+          Prioritize fresh, lean, minimally-processed sources of protein. Limit red meat to ~18 oz / 500 g
+          (or 4 palms) per week or less.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <SourceColumn data={PROTEIN_SOURCES.more} />
+        <SourceColumn data={PROTEIN_SOURCES.some} />
+        <SourceColumn data={PROTEIN_SOURCES.less} />
+      </div>
+
+      <p className="text-white/40 text-xs text-center mt-6 max-w-2xl mx-auto">
+        Lentils &amp; beans count as protein for plant-based eaters and meatless meals — otherwise they're
+        considered carbohydrate sources.
+      </p>
+    </div>
+  )
+}
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 export default function ProteinCalculator() {
@@ -485,30 +595,8 @@ export default function ProteinCalculator() {
           </div>
         </div>
 
-        {/* ============== Protein Source Guide ============== */}
-        <div className="max-w-5xl mx-auto mt-16">
-          <div className="text-center mb-10">
-            <p className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-2">
-              Best Protein Sources
-            </p>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase text-white mb-4">
-              What to <span className="text-da-gold">Eat</span>
-            </h2>
-            <p className="text-white/60 max-w-2xl mx-auto text-sm md:text-base">
-              Use this quick reference to choose the highest-quality protein sources for your goals.
-              Prioritize the green column, enjoy the orange column in moderation, and minimize the red.
-            </p>
-          </div>
-
-          <div className="bg-da-card rounded-2xl p-4 md:p-6 overflow-hidden">
-            <img
-              src="/images/protein-display-card.png"
-              alt="Diabetic Athletic protein source guide — Eat More, Eat Some, Eat Less"
-              className="w-full h-auto rounded-lg"
-              loading="lazy"
-            />
-          </div>
-        </div>
+        {/* ============== Protein Source Guide (native — replaces image) ============== */}
+        <ProteinSourceGuide />
 
         {/* ============== FAQ ============== */}
         <div className="max-w-3xl mx-auto mt-16">
