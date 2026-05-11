@@ -216,13 +216,106 @@ export default function MealFrequencyCalculator() {
 }
 
 function MealTimeline({ plan, dayType }) {
-  // Implemented in Task 2.6
-  return null
+  return (
+    <div className="space-y-3">
+      <div className="bg-da-card rounded-2xl p-6">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-1">{dayType === 'training' ? 'Training Day' : 'Rest Day'} Meal Plan</p>
+        <p className="text-white/40 text-sm">Daily totals stay constant across day types — only the structure shifts.</p>
+      </div>
+
+      {plan.meals.map((meal) => {
+        const isPre  = meal.name === 'Pre-Workout'
+        const isPost = meal.name === 'Post-Workout'
+        const accentColor = isPre ? '#46C0ED' : isPost ? '#FCC826' : null
+        const accentIcon = isPre ? '⚡' : isPost ? '💪' : null
+
+        return (
+          <div key={meal.idx}
+            className="bg-da-card rounded-2xl p-5 md:p-6"
+            style={accentColor ? { borderLeft: `4px solid ${accentColor}` } : {}}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                {meal.role === 'peri' && (
+                  <p className="uppercase tracking-wider text-xs font-bold mb-1" style={{ color: accentColor }}>
+                    {accentIcon} Peri-Workout
+                  </p>
+                )}
+                <h3 className="text-xl font-black text-white uppercase tracking-wide">{meal.name}</h3>
+                <p className="text-xs text-white/40 mt-1">Carbs type: <span className="text-white/60 capitalize">{meal.carbsType}</span></p>
+              </div>
+              {meal.warnOverFifty && (
+                <span className="text-xs bg-red-500/20 border border-red-500/40 text-red-300 px-2 py-1 rounded-full uppercase tracking-wider font-bold">
+                  ⚠️ &gt;50g carbs
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+              {[
+                ['Calories', meal.calories.toFixed(0), 'kcal'],
+                ['Protein',  meal.protein.toFixed(1),  'g'],
+                ['Carbs',    meal.carbs.toFixed(1),    'g'],
+                ['Fat',      meal.fat.toFixed(1),      'g'],
+                ['Fiber',    meal.fiber.toFixed(1),    'g'],
+              ].map(([label, val, unit]) => (
+                <div key={label} className="bg-da-dark/60 rounded-lg p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">{label}</p>
+                  <p className="text-white font-bold">{val}<span className="text-white/40 text-xs ml-0.5">{unit}</span></p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 function EducationalCards() {
-  // Implemented in Task 2.7
-  return null
+  return (
+    <div className="space-y-4">
+      {/* Three-Hour Rule */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">🕒 The Three-Hour Rule</p>
+        <div className="text-white/70 space-y-3 text-sm leading-relaxed">
+          <p>The <strong className="text-white">timing</strong> of your pre-workout meal changes how you should <strong className="text-white">dose insulin</strong> for it (even though the meal's macros stay the same in this plan).</p>
+          <p><strong className="text-white">A meal 3+ hours before training</strong> can be dosed normally — most short-acting insulin has a ~4-hour action window, so by the time you train you'll have roughly 25% of that bolus still on board. Great for strength work; minimal hypo risk for endurance.</p>
+          <p><strong className="text-white">A meal within 1 hour of training</strong> is best dosed at roughly 25% of your usual amount (a 75% reduction). The remaining 75% would otherwise stack with exercise-driven glucose drops.</p>
+          <p>
+            <Link to="/calculators/magic-ratio" className="text-da-cyan underline font-bold">
+              → Use the Magic Ratio Calculator to calibrate your insulin-to-carb ratio
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      {/* Post-workout insulin sensitivity */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-gold">
+        <p className="text-da-gold uppercase tracking-wider text-xs font-bold mb-3">💉 Post-Workout Insulin Sensitivity</p>
+        <div className="text-white/70 space-y-3 text-sm leading-relaxed">
+          <p>You're significantly more insulin-sensitive <strong className="text-white">during and after</strong> training — for up to 24 hours, peaking 4–6 hours after exercise.</p>
+          <p>Most people benefit from reducing the post-workout meal bolus by <strong className="text-white">50–75%</strong> of their normal insulin-to-carb ratio. Recheck glucose at 30 min and 2 hours post-meal to verify.</p>
+          <p>
+            <Link to="/calculators/magic-ratio" className="text-da-gold underline font-bold">
+              → Recalibrate around training with the Magic Ratio Calculator
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      {/* Coaching notes */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Coach's Notes</p>
+        <ul className="space-y-2 text-sm text-white/70">
+          <li>💧 <strong className="text-white">Eat in a relaxed state.</strong> Suit meals to your life schedule, not the other way around.</li>
+          <li>⚠️ <strong className="text-white">Carbs used to treat hypos count.</strong> Adjust meals down on days you've had to treat lows.</li>
+          <li>🎯 <strong className="text-white">This is a template, not a rule.</strong> Shift meal timing as needed — daily totals are what matter.</li>
+          <li>🍎 <strong className="text-white">Pre-workout = simple carbs, post-workout = complex carbs.</strong> Same macro amounts, different carb types for utilization and replenishment.</li>
+        </ul>
+      </div>
+    </div>
+  )
 }
 
 function Disclaimer() {
