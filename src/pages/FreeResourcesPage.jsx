@@ -37,6 +37,13 @@ const calculators = [
     description: 'Plug in your starting glucose, CGM trend, IOB, and the workout you\'re about to do. Get a literature-grounded prediction of where your glucose will land and whether you need to fuel up first. Built on Riddell consensus + EXTOD guidelines.',
     badge: 'NEW',
   },
+  {
+    slug: 'meal-frequency',
+    name: 'Meal Frequency Planner',
+    tagline: 'Structure your day around dosing accuracy',
+    description: 'Plug in your daily macros — get a structured eating plan with peri-workout-weighted distribution (65% carbs to pre/post by default), built from Nicholas\'s actual coaching system. Adapts to training time and respects the 35-45g carbs-per-meal dosing rule.',
+    badge: 'NEW',
+  },
 ]
 
 export default function FreeResourcesPage() {
@@ -52,7 +59,7 @@ export default function FreeResourcesPage() {
             Diabetic Athletic <span className="text-da-gold">Toolkit</span>
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto leading-relaxed">
-            Five free, fully-functional calculators built for Type 1 diabetics serious about their fitness. No email gates on the math — just plug in your numbers and get answers.
+            Six free, fully-functional calculators built for Type 1 diabetics serious about their fitness. No email gates on the math — just plug in your numbers and get answers.
           </p>
         </div>
       </section>
