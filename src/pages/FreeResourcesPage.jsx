@@ -30,6 +30,13 @@ const calculators = [
     description: 'Calculate your 5 personalized heart rate training zones using the Karvonen method (which factors in your resting heart rate). Know exactly when to push, when to recover, and how to optimize cardio for fat loss vs endurance.',
     badge: 'Performance',
   },
+  {
+    slug: 'pre-workout-glucose',
+    name: 'Pre-Workout Glucose Predictor',
+    tagline: 'Predict end-glucose before you train',
+    description: 'Plug in your starting glucose, CGM trend, IOB, and the workout you\'re about to do. Get a literature-grounded prediction of where your glucose will land and whether you need to fuel up first. Built on Riddell consensus + EXTOD guidelines.',
+    badge: 'NEW',
+  },
 ]
 
 export default function FreeResourcesPage() {
@@ -45,7 +52,7 @@ export default function FreeResourcesPage() {
             Diabetic Athletic <span className="text-da-gold">Toolkit</span>
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto leading-relaxed">
-            Four free, fully-functional calculators built for Type 1 diabetics serious about their fitness. No email gates on the math — just plug in your numbers and get answers.
+            Five free, fully-functional calculators built for Type 1 diabetics serious about their fitness. No email gates on the math — just plug in your numbers and get answers.
           </p>
         </div>
       </section>

@@ -12,6 +12,7 @@ import CalorieCalculator from './features/calculators/CalorieCalculator'
 import ProteinCalculator from './features/calculators/ProteinCalculator'
 import InsulinCalculator from './features/calculators/InsulinCalculator'
 import CardioCalculator from './features/calculators/CardioCalculator'
+import PreWorkoutGlucoseCalculator from './features/calculators/PreWorkoutGlucoseCalculator'
 import NewsletterForm from './features/newsletter/NewsletterForm'
 import { useAppStore } from './store/appStore'
 
@@ -35,6 +36,7 @@ export default function App() {
           {/* legacy URL — keeps old links working */}
           <Route path="/calculators/insulin" element={<InsulinCalculator />} />
           <Route path="/calculators/cardio" element={<CardioCalculator />} />
+          <Route path="/calculators/pre-workout-glucose" element={<PreWorkoutGlucoseCalculator />} />
         </Routes>
       </main>
       <Footer />
