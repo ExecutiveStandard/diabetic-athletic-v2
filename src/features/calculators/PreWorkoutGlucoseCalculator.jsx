@@ -278,8 +278,76 @@ export default function PreWorkoutGlucoseCalculator() {
 }
 
 function PredictionResults({ prediction, bodyweightKg, glucoseUnit, workoutType }) {
-  // Implemented in Task 1.7
-  return null
+  const band = bandFor(prediction.endMmol)
+  const carbs = gramsNeeded(prediction.endMmol, bodyweightKg || 70)
+
+  const display = (mmol) => glucoseUnit === 'mmol'
+    ? `${formatGlucose(mmol, 'mmol')} mmol/L`
+    : `${formatGlucose(mmolToMgdl(mmol), 'mgdl')} mg/dL`
+
+  // Tip text by workout type
+  const tips = {
+    aerobic:   'Aerobic exercise typically lowers glucose steadily. Recheck at 30min. Carry 15g fast carbs.',
+    anaerobic: 'High-intensity work can raise glucose during, then drop afterward. Watch the cool-down window.',
+    mixed:     'Mixed workouts have variable responses — recheck at 20 and 40min.',
+    strength:  'Strength training has lower hypo-risk during, but post-workout drops are common 1–4hr later.',
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Headline */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8 border-2" style={{ borderColor: band.color }}>
+        <p className="text-white/50 uppercase tracking-wider text-xs font-bold mb-2">Predicted End-Glucose</p>
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <span className="text-5xl md:text-6xl font-black text-white">{display(prediction.endMmol)}</span>
+          <span className="text-lg text-white/40">({glucoseUnit === 'mmol' ? `${mmolToMgdl(prediction.endMmol)} mg/dL` : `${formatGlucose(prediction.endMmol, 'mmol')} mmol/L`})</span>
+        </div>
+        <div className="mt-4 inline-block px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider" style={{ backgroundColor: band.color + '22', color: band.color, border: `1px solid ${band.color}66` }}>
+          {band.label}
+        </div>
+      </div>
+
+      {/* Recommendation */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Recommendation</p>
+        <p className="text-white text-lg">
+          {carbs > 0
+            ? `Consume ${carbs}g of fast-acting carbs (glucose tabs, juice, dextrose) now and recheck in 15 minutes before starting.`
+            : band.action
+          }
+        </p>
+      </div>
+
+      {/* Why this prediction */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Why this prediction</p>
+        <ul className="space-y-2">
+          {prediction.breakdown.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-3 text-sm">
+              <span className={`font-bold ${item.delta < 0 ? 'text-red-400' : item.delta > 0 ? 'text-da-gold' : 'text-white/60'}`}>
+                {item.delta > 0 ? '+' : ''}{item.delta.toFixed(1)} mmol/L
+              </span>
+              <span className="text-white/70 flex-1">{item.label} — <span className="text-white/40">{item.reasoning}</span></span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* During-workout tips */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">During-Workout Tips</p>
+        <p className="text-white/70">{tips[workoutType] || tips.aerobic}</p>
+      </div>
+
+      {/* Post-workout brief */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-gold uppercase tracking-wider text-xs font-bold mb-2">Post-Workout Brief</p>
+        <p className="text-white/70">
+          You may experience a <strong>delayed glucose drop 4–6 hours post-workout</strong> due to ongoing glycogen replenishment. Recheck at 1hr and 4hr after finishing. Your post-workout insulin needs may be reduced by 50–75%. <Link to="/calculators/magic-ratio" className="text-da-cyan underline">Use the Magic Ratio Calculator</Link> to recalibrate your bolus around training.
+        </p>
+      </div>
+    </div>
+  )
 }
 
 function Disclaimer() {
