@@ -267,7 +267,7 @@ export default function PreWorkoutGlucoseCalculator() {
           {prediction && <PredictionResults prediction={prediction} bodyweightKg={parseFloat(weight) * (weightUnit === 'kg' ? 1 : 0.453592)} glucoseUnit={glucoseUnit} workoutType={workoutType} />}
 
           <div className="text-center pt-4">
-            <Button variant="ghost" onClick={reset}>Reset</Button>
+            <Button variant="outline" onClick={reset}>Reset</Button>
           </div>
 
           <Disclaimer />
