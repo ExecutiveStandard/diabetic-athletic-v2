@@ -37,11 +37,11 @@ src/features/calculators/
 ├── meal-frequency/                       # NEW — Phase 2 pure-logic helpers
 │   ├── slotAssignment.js
 │   ├── slotAssignment.test.js
-│   ├── compositionRules.js
-│   ├── compositionRules.test.js
-│   ├── redistribution.js
-│   ├── redistribution.test.js
-│   ├── planner.js
+│   ├── distribution.js                   # peri-weighted macro distribution
+│   ├── distribution.test.js
+│   ├── mealCount.js                      # defaults + smart bump suggestion
+│   ├── mealCount.test.js
+│   ├── planner.js                        # orchestrator
 │   └── planner.test.js
 ├── CalorieCalculator.jsx                 # existing — untouched
 ├── CardioCalculator.jsx                  # existing — untouched
@@ -1330,7 +1330,7 @@ git commit -m "feat(pre-workout-glucose): wire route + add to Free Resources pag
 
 ## Task 2.1: Slot assignment (`slotAssignment.js`)
 
-Spec reference: Appendix A. Pure data table + lookup.
+Spec reference: Appendix A. Pure data lookup that returns the chronologically-ordered slot labels plus pre/post indices for a given `(N, training_time)` combo.
 
 **Files:**
 - Create: `src/features/calculators/meal-frequency/slotAssignment.js`
@@ -1342,47 +1342,76 @@ Create `src/features/calculators/meal-frequency/slotAssignment.test.js`:
 
 ```js
 import { describe, it, expect } from 'vitest'
-import { getSlots } from './slotAssignment'
+import { getTrainingDayLayout, getRestDayLayout } from './slotAssignment'
 
-describe('getSlots — morning training', () => {
-  it('N=3 → PW=0, PoW=1', () => {
-    expect(getSlots(3, 'morning')).toEqual({ preIdx: 0, postIdx: 1 })
+describe('getTrainingDayLayout — N=4 (sheet default)', () => {
+  it('morning → [Pre, Post, Lunch, Dinner], preIdx=0 postIdx=1', () => {
+    const r = getTrainingDayLayout(4, 'morning')
+    expect(r.labels).toEqual(['Pre-Workout', 'Post-Workout', 'Lunch', 'Dinner'])
+    expect(r.preIdx).toBe(0)
+    expect(r.postIdx).toBe(1)
   })
-  it('N=5 → PW=0, PoW=1', () => {
-    expect(getSlots(5, 'morning')).toEqual({ preIdx: 0, postIdx: 1 })
+  it('afternoon → [Breakfast, Pre, Post, Dinner], preIdx=1 postIdx=2', () => {
+    const r = getTrainingDayLayout(4, 'afternoon')
+    expect(r.labels).toEqual(['Breakfast', 'Pre-Workout', 'Post-Workout', 'Dinner'])
+    expect(r.preIdx).toBe(1)
+    expect(r.postIdx).toBe(2)
   })
-  it('N=7 → PW=0, PoW=1', () => {
-    expect(getSlots(7, 'morning')).toEqual({ preIdx: 0, postIdx: 1 })
+  it('evening → [Breakfast, Lunch, Pre, Post], preIdx=2 postIdx=3', () => {
+    const r = getTrainingDayLayout(4, 'evening')
+    expect(r.labels).toEqual(['Breakfast', 'Lunch', 'Pre-Workout', 'Post-Workout'])
+    expect(r.preIdx).toBe(2)
+    expect(r.postIdx).toBe(3)
   })
 })
 
-describe('getSlots — midday training', () => {
-  it('N=3 → PW=1 (Lunch), PoW=2 (Supper)', () => {
-    expect(getSlots(3, 'midday')).toEqual({ preIdx: 1, postIdx: 2 })
+describe('getTrainingDayLayout — other N values', () => {
+  it('N=3 morning → 3 slots, preIdx=0 postIdx=1', () => {
+    const r = getTrainingDayLayout(3, 'morning')
+    expect(r.labels.length).toBe(3)
+    expect(r.preIdx).toBe(0)
+    expect(r.postIdx).toBe(1)
   })
-  it('N=4 → PW=1 (Lunch), PoW=2 (Snack)', () => {
-    expect(getSlots(4, 'midday')).toEqual({ preIdx: 1, postIdx: 2 })
+  it('N=5 evening → preIdx=3 postIdx=4', () => {
+    const r = getTrainingDayLayout(5, 'evening')
+    expect(r.labels.length).toBe(5)
+    expect(r.preIdx).toBe(3)
+    expect(r.postIdx).toBe(4)
   })
-  it('N=5 → PW=1 (Mid-morning), PoW=2 (Lunch)', () => {
-    expect(getSlots(5, 'midday')).toEqual({ preIdx: 1, postIdx: 2 })
+  it('N=6 afternoon → preIdx=2 postIdx=3', () => {
+    const r = getTrainingDayLayout(6, 'afternoon')
+    expect(r.labels.length).toBe(6)
+    expect(r.preIdx).toBe(2)
+    expect(r.postIdx).toBe(3)
   })
-  it('N=6 → PW=2 (Lunch), PoW=3 (Afternoon Snack)', () => {
-    expect(getSlots(6, 'midday')).toEqual({ preIdx: 2, postIdx: 3 })
+  it('N=7 evening → preIdx=4 postIdx=5', () => {
+    const r = getTrainingDayLayout(7, 'evening')
+    expect(r.labels.length).toBe(7)
+    expect(r.preIdx).toBe(4)
+    expect(r.postIdx).toBe(5)
+  })
+  it('Pre and Post are always adjacent', () => {
+    for (const N of [3, 4, 5, 6, 7]) {
+      for (const t of ['morning', 'afternoon', 'evening']) {
+        const r = getTrainingDayLayout(N, t)
+        expect(r.postIdx - r.preIdx).toBe(1)
+      }
+    }
   })
 })
 
-describe('getSlots — evening training', () => {
-  it('N=3 → PW=1, PoW=2', () => {
-    expect(getSlots(3, 'evening')).toEqual({ preIdx: 1, postIdx: 2 })
+describe('getRestDayLayout', () => {
+  it('N=3 → Breakfast, Lunch, Dinner', () => {
+    expect(getRestDayLayout(3)).toEqual(['Breakfast', 'Lunch', 'Dinner'])
   })
-  it('N=4 → PW=2, PoW=3', () => {
-    expect(getSlots(4, 'evening')).toEqual({ preIdx: 2, postIdx: 3 })
+  it('N=4 → Breakfast, Lunch, Snack, Dinner', () => {
+    expect(getRestDayLayout(4)).toEqual(['Breakfast', 'Lunch', 'Snack', 'Dinner'])
   })
-  it('N=5 → PW=3, PoW=4', () => {
-    expect(getSlots(5, 'evening')).toEqual({ preIdx: 3, postIdx: 4 })
+  it('N=5 → 5 chronological labels', () => {
+    expect(getRestDayLayout(5).length).toBe(5)
   })
-  it('N=7 → PW=3, PoW=4', () => {
-    expect(getSlots(7, 'evening')).toEqual({ preIdx: 3, postIdx: 4 })
+  it('N=7 → 7 chronological labels', () => {
+    expect(getRestDayLayout(7).length).toBe(7)
   })
 })
 ```
@@ -1390,202 +1419,420 @@ describe('getSlots — evening training', () => {
 - [ ] **Step 2: Verify failure**
 
 Run: `npm test src/features/calculators/meal-frequency/slotAssignment.test.js`
-Expected: FAIL.
+Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement**
 
 Create `src/features/calculators/meal-frequency/slotAssignment.js`:
 
 ```js
-// Indices are 0-based and refer to the meal array produced for meal count N
-// (see Appendix A of the spec for the rationale).
-const TABLE = {
-  morning: { 3: [0, 1], 4: [0, 1], 5: [0, 1], 6: [0, 1], 7: [0, 1] },
-  midday:  { 3: [1, 2], 4: [1, 2], 5: [1, 2], 6: [2, 3], 7: [2, 3] },
-  evening: { 3: [1, 2], 4: [2, 3], 5: [3, 4], 6: [3, 4], 7: [3, 4] },
+// Chronological slot labels for training day by (N, training_time).
+// Per spec Appendix A — derived from Nicholas's master sheet (Macro Timing tab).
+const TRAINING_LAYOUTS = {
+  morning: {
+    3: ['Pre-Workout', 'Post-Workout', 'Dinner'],
+    4: ['Pre-Workout', 'Post-Workout', 'Lunch', 'Dinner'],
+    5: ['Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner'],
+    6: ['Pre-Workout', 'Post-Workout', 'Snack', 'Lunch', 'Snack', 'Dinner'],
+    7: ['Pre-Workout', 'Post-Workout', 'Snack', 'Lunch', 'Snack', 'Dinner', 'Late Snack'],
+  },
+  afternoon: {
+    3: ['Breakfast', 'Pre-Workout', 'Post-Workout'],
+    4: ['Breakfast', 'Pre-Workout', 'Post-Workout', 'Dinner'],
+    5: ['Breakfast', 'Snack', 'Pre-Workout', 'Post-Workout', 'Dinner'],
+    6: ['Breakfast', 'Snack', 'Pre-Workout', 'Post-Workout', 'Snack', 'Dinner'],
+    7: ['Breakfast', 'Snack', 'Pre-Workout', 'Post-Workout', 'Snack', 'Dinner', 'Late Snack'],
+  },
+  evening: {
+    3: ['Breakfast', 'Pre-Workout', 'Post-Workout'],
+    4: ['Breakfast', 'Lunch', 'Pre-Workout', 'Post-Workout'],
+    5: ['Breakfast', 'Lunch', 'Snack', 'Pre-Workout', 'Post-Workout'],
+    6: ['Breakfast', 'Snack', 'Lunch', 'Snack', 'Pre-Workout', 'Post-Workout'],
+    7: ['Breakfast', 'Snack', 'Lunch', 'Snack', 'Pre-Workout', 'Post-Workout', 'Late Snack'],
+  },
 }
 
-export function getSlots(mealCount, trainingTime) {
-  const pair = TABLE[trainingTime]?.[mealCount]
-  if (!pair) throw new Error(`No slot assignment for N=${mealCount} time=${trainingTime}`)
-  return { preIdx: pair[0], postIdx: pair[1] }
-}
-```
-
-- [ ] **Step 4: Run tests, pass**
-
-Run: `npm test src/features/calculators/meal-frequency/slotAssignment.test.js`
-Expected: PASS, 11 tests.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/features/calculators/meal-frequency/slotAssignment.js src/features/calculators/meal-frequency/slotAssignment.test.js
-git commit -m "feat(meal-frequency): add slot assignment table for training-day meal positions"
-```
-
----
-
-## Task 2.2: Composition rules (`compositionRules.js`)
-
-Spec reference: §4.5.2
-
-**Files:**
-- Create: `src/features/calculators/meal-frequency/compositionRules.js`
-- Create: `src/features/calculators/meal-frequency/compositionRules.test.js`
-
-- [ ] **Step 1: Write failing tests**
-
-Create `src/features/calculators/meal-frequency/compositionRules.test.js`:
-
-```js
-import { describe, it, expect } from 'vitest'
-import { preWorkoutComposition, PRE_TIMING } from './compositionRules'
-
-describe('preWorkoutComposition', () => {
-  it('3+ hours: equal fat, equal fiber, complex carbs', () => {
-    expect(preWorkoutComposition(PRE_TIMING.OVER_3HR)).toEqual({
-      carbsType: 'complex', fatShare: 1.0, fiberShare: 1.0,
-    })
-  })
-  it('1-3 hours: half fat, half fiber, mostly complex', () => {
-    expect(preWorkoutComposition(PRE_TIMING.ONE_TO_THREE_HR)).toEqual({
-      carbsType: 'mostly-complex', fatShare: 0.5, fiberShare: 0.5,
-    })
-  })
-  it('<1 hour: zero fat, zero fiber, simple carbs', () => {
-    expect(preWorkoutComposition(PRE_TIMING.UNDER_1HR)).toEqual({
-      carbsType: 'simple', fatShare: 0, fiberShare: 0,
-    })
-  })
-})
-```
-
-- [ ] **Step 2: Verify failure**
-
-Run: `npm test src/features/calculators/meal-frequency/compositionRules.test.js`
-Expected: FAIL.
-
-- [ ] **Step 3: Implement**
-
-Create `src/features/calculators/meal-frequency/compositionRules.js`:
-
-```js
-export const PRE_TIMING = {
-  OVER_3HR:        'over3hr',
-  ONE_TO_THREE_HR: 'one-to-three',
-  UNDER_1HR:       'under1hr',
+const REST_LAYOUTS = {
+  3: ['Breakfast', 'Lunch', 'Dinner'],
+  4: ['Breakfast', 'Lunch', 'Snack', 'Dinner'],
+  5: ['Breakfast', 'Snack', 'Lunch', 'Snack', 'Dinner'],
+  6: ['Breakfast', 'Snack', 'Lunch', 'Snack', 'Dinner', 'Late Snack'],
+  7: ['Breakfast', 'Snack', 'Lunch', 'Snack', 'Dinner', 'Late Snack', 'Bedtime Snack'],
 }
 
-const RULES = {
-  [PRE_TIMING.OVER_3HR]:        { carbsType: 'complex',         fatShare: 1.0, fiberShare: 1.0 },
-  [PRE_TIMING.ONE_TO_THREE_HR]: { carbsType: 'mostly-complex',  fatShare: 0.5, fiberShare: 0.5 },
-  [PRE_TIMING.UNDER_1HR]:       { carbsType: 'simple',          fatShare: 0,   fiberShare: 0 },
+export function getTrainingDayLayout(N, trainingTime) {
+  const labels = TRAINING_LAYOUTS[trainingTime]?.[N]
+  if (!labels) {
+    throw new Error(`No training-day layout for N=${N} time=${trainingTime}`)
+  }
+  const preIdx = labels.indexOf('Pre-Workout')
+  const postIdx = labels.indexOf('Post-Workout')
+  return { labels: [...labels], preIdx, postIdx }
 }
 
-export function preWorkoutComposition(timing) {
-  return RULES[timing] || RULES[PRE_TIMING.OVER_3HR]
+export function getRestDayLayout(N) {
+  const labels = REST_LAYOUTS[N]
+  if (!labels) throw new Error(`No rest-day layout for N=${N}`)
+  return [...labels]
 }
 ```
 
 - [ ] **Step 4: Tests pass**
 
-Run: `npm test src/features/calculators/meal-frequency/compositionRules.test.js`
-Expected: PASS, 3 tests.
+Run: `npm test src/features/calculators/meal-frequency/slotAssignment.test.js`
+Expected: PASS, 13 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/features/calculators/meal-frequency/compositionRules.js src/features/calculators/meal-frequency/compositionRules.test.js
-git commit -m "feat(meal-frequency): add pre-workout meal composition rules by timing"
+git add src/features/calculators/meal-frequency/slotAssignment.js src/features/calculators/meal-frequency/slotAssignment.test.js
+git commit -m "feat(meal-frequency): add chronological slot layout per (N, training_time)"
 ```
 
 ---
 
-## Task 2.3: Fat/fiber redistribution (`redistribution.js`)
+## Task 2.2: Meal count helper (`mealCount.js`)
 
-Spec reference: §4.5.3
+Spec reference: §4.3. Defaults + smart-bump suggestion when high carb totals would force any meal over 45g.
 
 **Files:**
-- Create: `src/features/calculators/meal-frequency/redistribution.js`
-- Create: `src/features/calculators/meal-frequency/redistribution.test.js`
+- Create: `src/features/calculators/meal-frequency/mealCount.js`
+- Create: `src/features/calculators/meal-frequency/mealCount.test.js`
 
 - [ ] **Step 1: Write failing tests**
 
-Create `src/features/calculators/meal-frequency/redistribution.test.js`:
+Create `src/features/calculators/meal-frequency/mealCount.test.js`:
 
 ```js
 import { describe, it, expect } from 'vitest'
-import { redistribute } from './redistribution'
+import { defaultMealCount, suggestMealCount, DEFAULTS } from './mealCount'
 
-describe('redistribute', () => {
-  it('zero pre share: full redistribution to N-1 meals', () => {
-    // perMealFat=14, N=5, preFatShare=0 → displaced=14, others get 14 + 14/4 = 17.5 each
-    const result = redistribute({ perMealFat: 14, perMealFiber: 5, N: 5, preFatShare: 0, preFiberShare: 0 })
-    expect(result.preFat).toBe(0)
-    expect(result.preFiber).toBe(0)
-    expect(result.otherFat).toBeCloseTo(17.5, 2)
-    expect(result.otherFiber).toBeCloseTo(6.25, 2)
+describe('DEFAULTS', () => {
+  it('training default is 4', () => {
+    expect(DEFAULTS.training).toBe(4)
   })
-  it('half pre share: half is displaced', () => {
-    const result = redistribute({ perMealFat: 14, perMealFiber: 5, N: 5, preFatShare: 7, preFiberShare: 2.5 })
-    expect(result.preFat).toBe(7)
-    expect(result.otherFat).toBeCloseTo(14 + 7 / 4, 2) // 15.75
-    expect(result.otherFiber).toBeCloseTo(5 + 2.5 / 4, 2) // 5.625
+  it('rest default is 3', () => {
+    expect(DEFAULTS.rest).toBe(3)
   })
-  it('full pre share: no redistribution', () => {
-    const result = redistribute({ perMealFat: 14, perMealFiber: 5, N: 5, preFatShare: 14, preFiberShare: 5 })
-    expect(result.otherFat).toBe(14)
-    expect(result.otherFiber).toBe(5)
+})
+
+describe('defaultMealCount', () => {
+  it('training day → 4', () => {
+    expect(defaultMealCount('training')).toBe(4)
   })
-  it('preserves daily totals (fat)', () => {
-    const result = redistribute({ perMealFat: 14, perMealFiber: 5, N: 5, preFatShare: 0, preFiberShare: 0 })
-    const dailyTotal = result.preFat + result.otherFat * 4
-    expect(dailyTotal).toBeCloseTo(70, 2) // 14 × 5 = 70
+  it('rest day → 3', () => {
+    expect(defaultMealCount('rest')).toBe(3)
+  })
+})
+
+describe('suggestMealCount — training day', () => {
+  it('low carbs (100g) at default N=4 → no bump needed', () => {
+    // Regular meal carbs at N=4, 0.65 weight: 0.35 × 100 / 2 = 17.5g (≤45g)
+    expect(suggestMealCount({ dayType: 'training', dailyCarbs: 100, carbWeight: 0.65 })).toEqual({
+      N: 4, reason: 'default', peri: 32.5, regular: 17.5,
+    })
+  })
+  it('moderate carbs (200g) at default N=4 → no bump needed', () => {
+    // Regular: 0.35 × 200 / 2 = 35g (≤45g). Peri: 0.65 × 200 / 2 = 65g (over 45 but THIS is the peri-weight problem)
+    const r = suggestMealCount({ dayType: 'training', dailyCarbs: 200, carbWeight: 0.65 })
+    expect(r.peri).toBeCloseTo(65, 1)
+    expect(r.regular).toBeCloseTo(35, 1)
+    expect(r.peri).toBeGreaterThan(45)
+    expect(r.suggestReducePeriWeight).toBe(true)
+  })
+  it('high carbs (300g) at N=4 → suggest bump for regulars', () => {
+    // Regular at N=4: 0.35 × 300 / 2 = 52.5g (over 45)
+    // Bump to N=5: 0.35 × 300 / 3 = 35g (ok)
+    const r = suggestMealCount({ dayType: 'training', dailyCarbs: 300, carbWeight: 0.65 })
+    expect(r.N).toBeGreaterThanOrEqual(5)
+    expect(r.regular).toBeLessThanOrEqual(45)
+  })
+  it('caps suggestion at N=7 even if math wants higher', () => {
+    const r = suggestMealCount({ dayType: 'training', dailyCarbs: 1000, carbWeight: 0.65 })
+    expect(r.N).toBeLessThanOrEqual(7)
+  })
+})
+
+describe('suggestMealCount — rest day', () => {
+  it('low carbs (100g) at default N=3 → no bump', () => {
+    // 100 / 3 = 33.3g (≤45g)
+    const r = suggestMealCount({ dayType: 'rest', dailyCarbs: 100 })
+    expect(r.N).toBe(3)
+    expect(r.perMeal).toBeCloseTo(33.3, 1)
+  })
+  it('high carbs (200g) at N=3 → suggest bump', () => {
+    // 200 / 3 = 66.7g (over 45)
+    // Bump to N=5: 200/5 = 40g (ok)
+    const r = suggestMealCount({ dayType: 'rest', dailyCarbs: 200 })
+    expect(r.N).toBeGreaterThanOrEqual(5)
+    expect(r.perMeal).toBeLessThanOrEqual(45)
   })
 })
 ```
 
 - [ ] **Step 2: Verify failure**
 
-Run: `npm test src/features/calculators/meal-frequency/redistribution.test.js`
+Run: `npm test src/features/calculators/meal-frequency/mealCount.test.js`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
-Create `src/features/calculators/meal-frequency/redistribution.js`:
+Create `src/features/calculators/meal-frequency/mealCount.js`:
 
 ```js
-export function redistribute({ perMealFat, perMealFiber, N, preFatShare, preFiberShare }) {
-  const displacedFat   = perMealFat   - preFatShare
-  const displacedFiber = perMealFiber - preFiberShare
-  const others = N - 1
-  return {
-    preFat:     preFatShare,
-    preFiber:   preFiberShare,
-    otherFat:   perMealFat   + (others > 0 ? displacedFat   / others : 0),
-    otherFiber: perMealFiber + (others > 0 ? displacedFiber / others : 0),
+export const DEFAULTS = {
+  training: 4,
+  rest: 3,
+}
+
+export const TARGET_CARB_CEILING = 45  // top of dosing-accuracy sweet spot
+
+export function defaultMealCount(dayType) {
+  return dayType === 'training' ? DEFAULTS.training : DEFAULTS.rest
+}
+
+function computeTrainingMeals(dailyCarbs, carbWeight, N) {
+  const peri = (carbWeight * dailyCarbs) / 2
+  const regular = ((1 - carbWeight) * dailyCarbs) / Math.max(1, N - 2)
+  return { peri, regular }
+}
+
+export function suggestMealCount({ dayType, dailyCarbs, carbWeight }) {
+  if (dayType === 'rest') {
+    let N = DEFAULTS.rest
+    while (dailyCarbs / N > TARGET_CARB_CEILING && N < 7) {
+      N += 1
+    }
+    return {
+      N,
+      perMeal: dailyCarbs / N,
+      reason: N === DEFAULTS.rest ? 'default' : 'bumped-for-carb-ceiling',
+    }
+  }
+
+  // Training day
+  let N = DEFAULTS.training
+  while (true) {
+    const { peri, regular } = computeTrainingMeals(dailyCarbs, carbWeight, N)
+    if (regular <= TARGET_CARB_CEILING || N >= 7) {
+      const result = {
+        N,
+        peri,
+        regular,
+        reason: N === DEFAULTS.training ? 'default' : 'bumped-for-regular-carb-ceiling',
+      }
+      if (peri > TARGET_CARB_CEILING) {
+        result.suggestReducePeriWeight = true
+      }
+      return result
+    }
+    N += 1
   }
 }
 ```
 
 - [ ] **Step 4: Tests pass**
 
-Run: `npm test src/features/calculators/meal-frequency/redistribution.test.js`
-Expected: PASS, 4 tests.
+Run: `npm test src/features/calculators/meal-frequency/mealCount.test.js`
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/features/calculators/meal-frequency/redistribution.js src/features/calculators/meal-frequency/redistribution.test.js
-git commit -m "feat(meal-frequency): add fat/fiber redistribution math"
+git add src/features/calculators/meal-frequency/mealCount.js src/features/calculators/meal-frequency/mealCount.test.js
+git commit -m "feat(meal-frequency): add meal-count defaults + smart bump suggestion"
 ```
 
 ---
 
-## Task 2.4: Planner core (`planner.js`)
+## Task 2.3: Peri-weighted distribution (`distribution.js`)
 
-Spec reference: §4.2 – §4.5
+Spec reference: §4.4 (training day) + §4.5 (rest day). Pure math — no slot positioning, no labeling.
+
+**Files:**
+- Create: `src/features/calculators/meal-frequency/distribution.js`
+- Create: `src/features/calculators/meal-frequency/distribution.test.js`
+
+- [ ] **Step 1: Write failing tests**
+
+Create `src/features/calculators/meal-frequency/distribution.test.js`:
+
+```js
+import { describe, it, expect } from 'vitest'
+import { distributeTrainingDay, distributeRestDay, caloriesFromMacros } from './distribution'
+
+describe('caloriesFromMacros', () => {
+  it('25g P, 32.5g C, 7.5g F = 297.5 cal', () => {
+    expect(caloriesFromMacros({ protein: 25, carbs: 32.5, fat: 7.5 })).toBeCloseTo(297.5, 1)
+  })
+  it('25g P, 17.5g C, 42.5g F = 552.5 cal', () => {
+    expect(caloriesFromMacros({ protein: 25, carbs: 17.5, fat: 42.5 })).toBeCloseTo(552.5, 1)
+  })
+})
+
+describe('distributeTrainingDay — matches Nicholas master sheet example', () => {
+  // 1700 cal / 100g P / 100g C / 100g F / 30g fiber, N=4, weights 0.65 / 0.15
+  const input = {
+    protein: 100, carbs: 100, fat: 100, fiber: 30,
+    N: 4, carbWeight: 0.65, fatWeight: 0.15,
+  }
+
+  it('produces peri and regular macro buckets matching the sheet', () => {
+    const r = distributeTrainingDay(input)
+    expect(r.peri.protein).toBeCloseTo(25, 1)
+    expect(r.peri.carbs).toBeCloseTo(32.5, 1)
+    expect(r.peri.fat).toBeCloseTo(7.5, 1)
+    expect(r.peri.fiber).toBeCloseTo(7.5, 1)
+    expect(r.peri.calories).toBeCloseTo(297.5, 1)
+
+    expect(r.regular.protein).toBeCloseTo(25, 1)
+    expect(r.regular.carbs).toBeCloseTo(17.5, 1)
+    expect(r.regular.fat).toBeCloseTo(42.5, 1)
+    expect(r.regular.fiber).toBeCloseTo(7.5, 1)
+    expect(r.regular.calories).toBeCloseTo(552.5, 1)
+  })
+
+  it('preserves daily totals across 2 peri + 2 regular meals', () => {
+    const r = distributeTrainingDay(input)
+    const totalP = 2 * r.peri.protein + 2 * r.regular.protein
+    const totalC = 2 * r.peri.carbs + 2 * r.regular.carbs
+    const totalF = 2 * r.peri.fat + 2 * r.regular.fat
+    const totalFib = 2 * r.peri.fiber + 2 * r.regular.fiber
+    expect(totalP).toBeCloseTo(100, 1)
+    expect(totalC).toBeCloseTo(100, 1)
+    expect(totalF).toBeCloseTo(100, 1)
+    expect(totalFib).toBeCloseTo(30, 1)
+  })
+})
+
+describe('distributeTrainingDay — N=5', () => {
+  it('preserves daily totals with 2 peri + 3 regulars', () => {
+    const r = distributeTrainingDay({
+      protein: 150, carbs: 200, fat: 80, fiber: 35,
+      N: 5, carbWeight: 0.65, fatWeight: 0.15,
+    })
+    const totalP = 2 * r.peri.protein + 3 * r.regular.protein
+    const totalC = 2 * r.peri.carbs + 3 * r.regular.carbs
+    const totalF = 2 * r.peri.fat + 3 * r.regular.fat
+    expect(totalP).toBeCloseTo(150, 1)
+    expect(totalC).toBeCloseTo(200, 1)
+    expect(totalF).toBeCloseTo(80, 1)
+  })
+})
+
+describe('distributeRestDay — matches Nicholas master sheet example', () => {
+  // 1700 cal / 100g P / 100g C / 100g F / 30g fiber, N=3
+  it('N=3 → each meal = 33.3g of every macro and 566.67 cal', () => {
+    const r = distributeRestDay({
+      protein: 100, carbs: 100, fat: 100, fiber: 30, N: 3,
+    })
+    expect(r.protein).toBeCloseTo(33.33, 1)
+    expect(r.carbs).toBeCloseTo(33.33, 1)
+    expect(r.fat).toBeCloseTo(33.33, 1)
+    expect(r.fiber).toBeCloseTo(10, 1)
+    expect(r.calories).toBeCloseTo(566.67, 1)
+  })
+})
+
+describe('distributeTrainingDay — extreme weights', () => {
+  it('carbWeight=0.5 → peri and regulars get equal carb amounts at N=4', () => {
+    const r = distributeTrainingDay({
+      protein: 100, carbs: 100, fat: 100, fiber: 30,
+      N: 4, carbWeight: 0.5, fatWeight: 0.5,
+    })
+    expect(r.peri.carbs).toBeCloseTo(r.regular.carbs, 1)
+    expect(r.peri.fat).toBeCloseTo(r.regular.fat, 1)
+  })
+  it('fatWeight=0 → peri meals have zero fat', () => {
+    const r = distributeTrainingDay({
+      protein: 100, carbs: 100, fat: 100, fiber: 30,
+      N: 4, carbWeight: 0.65, fatWeight: 0,
+    })
+    expect(r.peri.fat).toBe(0)
+  })
+})
+```
+
+- [ ] **Step 2: Verify failure**
+
+Run: `npm test src/features/calculators/meal-frequency/distribution.test.js`
+Expected: FAIL.
+
+- [ ] **Step 3: Implement**
+
+Create `src/features/calculators/meal-frequency/distribution.js`:
+
+```js
+export function caloriesFromMacros({ protein, carbs, fat }) {
+  return (protein || 0) * 4 + (carbs || 0) * 4 + (fat || 0) * 9
+}
+
+export function distributeTrainingDay({ protein, carbs, fat, fiber, N, carbWeight, fatWeight }) {
+  const regulars = Math.max(1, N - 2)
+
+  // CARBS — weighted toward peri
+  const periCarbs    = (carbWeight * carbs) / 2
+  const regularCarbs = ((1 - carbWeight) * carbs) / regulars
+
+  // FAT — weighted away from peri
+  const periFat    = (fatWeight * fat) / 2
+  const regularFat = ((1 - fatWeight) * fat) / regulars
+
+  // PROTEIN & FIBER — equal across all N meals
+  const equalProtein = protein / N
+  const equalFiber   = fiber / N
+
+  const peri = {
+    protein:  equalProtein,
+    carbs:    periCarbs,
+    fat:      periFat,
+    fiber:    equalFiber,
+    calories: caloriesFromMacros({ protein: equalProtein, carbs: periCarbs, fat: periFat }),
+  }
+
+  const regular = {
+    protein:  equalProtein,
+    carbs:    regularCarbs,
+    fat:      regularFat,
+    fiber:    equalFiber,
+    calories: caloriesFromMacros({ protein: equalProtein, carbs: regularCarbs, fat: regularFat }),
+  }
+
+  return { peri, regular }
+}
+
+export function distributeRestDay({ protein, carbs, fat, fiber, N }) {
+  const p = protein / N
+  const c = carbs / N
+  const f = fat / N
+  const fib = fiber / N
+  return {
+    protein: p,
+    carbs:   c,
+    fat:     f,
+    fiber:   fib,
+    calories: caloriesFromMacros({ protein: p, carbs: c, fat: f }),
+  }
+}
+```
+
+- [ ] **Step 4: Tests pass**
+
+Run: `npm test src/features/calculators/meal-frequency/distribution.test.js`
+Expected: PASS, 8 tests.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/calculators/meal-frequency/distribution.js src/features/calculators/meal-frequency/distribution.test.js
+git commit -m "feat(meal-frequency): add peri-weighted macro distribution (sheet-verified)"
+```
+
+---
+
+## Task 2.4: Planner orchestrator (`planner.js`)
+
+Spec reference: §4.3 - §4.6. Combines slot assignment + distribution + meal count helper into a single `buildDayPlan(input)` function that returns the final meal array.
 
 **Files:**
 - Create: `src/features/calculators/meal-frequency/planner.js`
@@ -1597,115 +1844,133 @@ Create `src/features/calculators/meal-frequency/planner.test.js`:
 
 ```js
 import { describe, it, expect } from 'vitest'
-import { buildDayPlan, suggestedMealCount, MEAL_NAMES } from './planner'
+import { buildDayPlan } from './planner'
 
-const baseInput = {
-  calories: 2400,
-  protein: 180,
-  fat: 70,
-  carbs: 240,
-  fiber: 25,
-  mealCount: 6,
-  dayType: 'nonTraining',
+const sheetExample = {
+  calories: 1700, protein: 100, carbs: 100, fat: 100, fiber: 30,
+  N: 4, carbWeight: 0.65, fatWeight: 0.15,
 }
 
-describe('suggestedMealCount', () => {
-  it('200g carbs → 5 meals', () => {
-    expect(suggestedMealCount(200)).toBe(5)
-  })
-  it('240g carbs → 6 meals (ceil(240/40))', () => {
-    expect(suggestedMealCount(240)).toBe(6)
-  })
-  it('100g carbs → clamped up to 3 (minimum)', () => {
-    expect(suggestedMealCount(100)).toBe(3)
-  })
-  it('400g carbs → clamped down to 7 (maximum)', () => {
-    expect(suggestedMealCount(400)).toBe(7)
-  })
-})
-
-describe('MEAL_NAMES', () => {
-  it('returns named meals for N=3, 5, 7', () => {
-    expect(MEAL_NAMES[3]).toEqual(['Breakfast', 'Lunch', 'Supper'])
-    expect(MEAL_NAMES[5].length).toBe(5)
-    expect(MEAL_NAMES[7].length).toBe(7)
-  })
-})
-
-describe('buildDayPlan — non-training day', () => {
-  it('produces N meals with equal macro distribution', () => {
-    const { meals } = buildDayPlan(baseInput)
-    expect(meals.length).toBe(6)
+describe('buildDayPlan — non-training (rest) day', () => {
+  it('N=3 rest day matches sheet (566.67 cal × 3)', () => {
+    const { meals } = buildDayPlan({ ...sheetExample, N: 3, dayType: 'rest' })
+    expect(meals.length).toBe(3)
     meals.forEach((m) => {
-      expect(m.calories).toBeCloseTo(400, 1)
-      expect(m.protein).toBeCloseTo(30, 1)
-      expect(m.fat).toBeCloseTo(11.67, 1)
-      expect(m.carbs).toBeCloseTo(40, 1)
-      expect(m.fiber).toBeCloseTo(4.17, 1)
+      expect(m.calories).toBeCloseTo(566.67, 1)
+      expect(m.protein).toBeCloseTo(33.33, 1)
+      expect(m.carbs).toBeCloseTo(33.33, 1)
+      expect(m.fat).toBeCloseTo(33.33, 1)
+      expect(m.fiber).toBeCloseTo(10, 1)
+      expect(m.role).toBe('regular')
     })
   })
-  it('totals sum to daily inputs', () => {
-    const { meals } = buildDayPlan(baseInput)
-    const sumCarbs = meals.reduce((s, m) => s + m.carbs, 0)
-    expect(sumCarbs).toBeCloseTo(240, 1)
-  })
-  it('assigns natural meal names', () => {
-    const { meals } = buildDayPlan({ ...baseInput, mealCount: 5 })
+  it('assigns chronological labels for rest day', () => {
+    const { meals } = buildDayPlan({ ...sheetExample, N: 3, dayType: 'rest' })
     expect(meals[0].name).toBe('Breakfast')
-    expect(meals[4].name).toBe('Supper')
-  })
-  it('flags meals exceeding 50g carbs', () => {
-    const { meals } = buildDayPlan({ ...baseInput, carbs: 320, mealCount: 5 }) // 64g/meal
-    meals.forEach((m) => expect(m.warnOverFifty).toBe(true))
+    expect(meals[1].name).toBe('Lunch')
+    expect(meals[2].name).toBe('Dinner')
   })
 })
 
-describe('buildDayPlan — training day, evening, <1hr pre-workout', () => {
-  const trainInput = {
-    ...baseInput,
-    dayType: 'training',
-    trainingTime: 'evening',
-    preWorkoutTiming: 'under1hr',
-  }
+describe('buildDayPlan — training day matches sheet (N=4, evening)', () => {
+  const input = { ...sheetExample, dayType: 'training', trainingTime: 'evening' }
 
-  it('labels pre/post slots correctly', () => {
-    const { meals } = buildDayPlan(trainInput)
-    // N=6 evening → preIdx=3, postIdx=4
-    expect(meals[3].label).toBe('Pre-Workout')
-    expect(meals[4].label).toBe('Post-Workout')
+  it('produces 4 meals in correct order', () => {
+    const { meals } = buildDayPlan(input)
+    expect(meals.length).toBe(4)
+    expect(meals[0].name).toBe('Breakfast')
+    expect(meals[1].name).toBe('Lunch')
+    expect(meals[2].name).toBe('Pre-Workout')
+    expect(meals[3].name).toBe('Post-Workout')
   })
 
-  it('pre-workout meal has 0 fat and 0 fiber for <1hr timing', () => {
-    const { meals } = buildDayPlan(trainInput)
-    expect(meals[3].fat).toBe(0)
-    expect(meals[3].fiber).toBe(0)
+  it('Pre-Workout meal macros match sheet (297.5 cal / 25P / 32.5C / 7.5F / 7.5fib)', () => {
+    const { meals } = buildDayPlan(input)
+    const pre = meals[2]
+    expect(pre.calories).toBeCloseTo(297.5, 1)
+    expect(pre.protein).toBeCloseTo(25, 1)
+    expect(pre.carbs).toBeCloseTo(32.5, 1)
+    expect(pre.fat).toBeCloseTo(7.5, 1)
+    expect(pre.fiber).toBeCloseTo(7.5, 1)
+    expect(pre.role).toBe('peri')
+    expect(pre.carbsType).toBe('simple')
   })
 
-  it('pre-workout meal has simple carbs', () => {
-    const { meals } = buildDayPlan(trainInput)
-    expect(meals[3].carbsType).toBe('simple')
+  it('Post-Workout meal macros match sheet (297.5 cal / 25P / 32.5C / 7.5F)', () => {
+    const { meals } = buildDayPlan(input)
+    const post = meals[3]
+    expect(post.calories).toBeCloseTo(297.5, 1)
+    expect(post.carbs).toBeCloseTo(32.5, 1)
+    expect(post.role).toBe('peri')
+    expect(post.carbsType).toBe('complex')
   })
 
-  it('post-workout meal has complex carbs', () => {
-    const { meals } = buildDayPlan(trainInput)
-    expect(meals[4].carbsType).toBe('complex')
+  it('Regular meals match sheet (552.5 cal / 25P / 17.5C / 42.5F)', () => {
+    const { meals } = buildDayPlan(input)
+    const reg1 = meals[0]
+    const reg2 = meals[1]
+    for (const r of [reg1, reg2]) {
+      expect(r.calories).toBeCloseTo(552.5, 1)
+      expect(r.carbs).toBeCloseTo(17.5, 1)
+      expect(r.fat).toBeCloseTo(42.5, 1)
+      expect(r.role).toBe('regular')
+      expect(r.carbsType).toBe('mixed')
+    }
   })
 
-  it('displaced fat redistributes — daily fat total preserved', () => {
-    const { meals } = buildDayPlan(trainInput)
-    const totalFat = meals.reduce((s, m) => s + m.fat, 0)
-    expect(totalFat).toBeCloseTo(70, 1)
+  it('daily totals match sheet exactly', () => {
+    const { meals } = buildDayPlan(input)
+    const sum = (k) => meals.reduce((s, m) => s + m[k], 0)
+    expect(sum('calories')).toBeCloseTo(1700, 1)
+    expect(sum('protein')).toBeCloseTo(100, 1)
+    expect(sum('carbs')).toBeCloseTo(100, 1)
+    expect(sum('fat')).toBeCloseTo(100, 1)
+    expect(sum('fiber')).toBeCloseTo(30, 1)
   })
+})
 
-  it('daily totals identical to non-training', () => {
-    const train  = buildDayPlan(trainInput).meals
-    const noTrain = buildDayPlan(baseInput).meals
-    const sumFn = (key) => (arr) => arr.reduce((s, m) => s + m[key], 0)
-    expect(sumFn('calories')(train)).toBeCloseTo(sumFn('calories')(noTrain), 1)
-    expect(sumFn('carbs')(train)).toBeCloseTo(sumFn('carbs')(noTrain), 1)
-    expect(sumFn('protein')(train)).toBeCloseTo(sumFn('protein')(noTrain), 1)
-    expect(sumFn('fat')(train)).toBeCloseTo(sumFn('fat')(noTrain), 1)
-    expect(sumFn('fiber')(train)).toBeCloseTo(sumFn('fiber')(noTrain), 1)
+describe('buildDayPlan — slot ordering by training time', () => {
+  it('morning training places Pre/Post first', () => {
+    const { meals } = buildDayPlan({ ...sheetExample, dayType: 'training', trainingTime: 'morning' })
+    expect(meals[0].name).toBe('Pre-Workout')
+    expect(meals[1].name).toBe('Post-Workout')
+  })
+  it('afternoon training places Pre/Post in slots 2-3', () => {
+    const { meals } = buildDayPlan({ ...sheetExample, dayType: 'training', trainingTime: 'afternoon' })
+    expect(meals[1].name).toBe('Pre-Workout')
+    expect(meals[2].name).toBe('Post-Workout')
+  })
+})
+
+describe('buildDayPlan — warning flags', () => {
+  it('flags meals with > 50g carbs', () => {
+    // N=3 rest day with 300g carbs → 100g/meal > 50g
+    const { meals } = buildDayPlan({
+      ...sheetExample, carbs: 300, N: 3, dayType: 'rest',
+    })
+    meals.forEach((m) => expect(m.warnOverFifty).toBe(true))
+  })
+  it('does not flag meals at or below 50g', () => {
+    const { meals } = buildDayPlan({
+      ...sheetExample, carbs: 100, N: 3, dayType: 'rest',
+    })
+    meals.forEach((m) => expect(m.warnOverFifty).toBe(false))
+  })
+})
+
+describe('buildDayPlan — macro-calorie consistency', () => {
+  it('returns macroCalorieDelta showing the discrepancy', () => {
+    // Macros imply: 100*4 + 100*4 + 100*9 = 1700 (matches stated calories)
+    const r = buildDayPlan({ ...sheetExample, dayType: 'rest' })
+    expect(Math.abs(r.macroCalorieDelta)).toBeLessThan(10)
+  })
+  it('flags consistency warning when delta exceeds 10%', () => {
+    // Stated 1700 cal but macros imply 1300 cal (76g P, 76g C, 76g F)
+    const r = buildDayPlan({
+      calories: 1700, protein: 76, carbs: 76, fat: 76, fiber: 25,
+      N: 3, dayType: 'rest',
+    })
+    expect(r.macroConsistencyWarning).toBe(true)
   })
 })
 ```
@@ -1720,100 +1985,90 @@ Expected: FAIL.
 Create `src/features/calculators/meal-frequency/planner.js`:
 
 ```js
-import { getSlots } from './slotAssignment'
-import { preWorkoutComposition, PRE_TIMING } from './compositionRules'
-import { redistribute } from './redistribution'
+import { getTrainingDayLayout, getRestDayLayout } from './slotAssignment'
+import { distributeTrainingDay, distributeRestDay, caloriesFromMacros } from './distribution'
 
-export const MEAL_NAMES = {
-  3: ['Breakfast', 'Lunch', 'Supper'],
-  4: ['Breakfast', 'Lunch', 'Snack', 'Supper'],
-  5: ['Breakfast', 'Mid-Morning Snack', 'Lunch', 'Afternoon Snack', 'Supper'],
-  6: ['Breakfast', 'Mid-Morning Snack', 'Lunch', 'Afternoon Snack', 'Supper', 'Evening Snack'],
-  7: ['Breakfast', 'Mid-Morning Snack', 'Lunch', 'Afternoon Snack', 'Supper', 'Evening Snack', 'Late Snack'],
-}
+const CARB_WARN_THRESHOLD = 50
 
-export function suggestedMealCount(dailyCarbs) {
-  const raw = Math.ceil(dailyCarbs / 40)
-  return Math.max(3, Math.min(7, raw))
+function checkMacroConsistency(stated, macros) {
+  const implied = caloriesFromMacros(macros)
+  const delta = implied - stated
+  return {
+    macroCalorieDelta: delta,
+    macroConsistencyWarning: Math.abs(delta) / Math.max(1, stated) > 0.10,
+  }
 }
 
 export function buildDayPlan(input) {
-  const { calories, protein, fat, carbs, fiber, mealCount, dayType } = input
-  const N = mealCount
+  const {
+    calories, protein, carbs, fat, fiber,
+    N, dayType, trainingTime, carbWeight = 0.65, fatWeight = 0.15,
+  } = input
 
-  const perMealCalories = calories / N
-  const perMealProtein  = protein  / N
-  const perMealFat      = fat      / N
-  const perMealCarbs    = carbs    / N
-  const perMealFiber    = fiber    / N
+  const consistency = checkMacroConsistency(calories, { protein, carbs, fat })
 
-  const names = MEAL_NAMES[N] || []
-  const warnOverFifty = perMealCarbs > 50
-
-  if (dayType === 'nonTraining') {
-    const meals = Array.from({ length: N }, (_, i) => ({
+  if (dayType === 'rest') {
+    const labels = getRestDayLayout(N)
+    const per = distributeRestDay({ protein, carbs, fat, fiber, N })
+    const meals = labels.map((name, i) => ({
       idx: i,
-      name: names[i] || `Meal ${i + 1}`,
-      label: null,
+      name,
+      role: 'regular',
       carbsType: 'mixed',
-      calories: perMealCalories,
-      protein:  perMealProtein,
-      fat:      perMealFat,
-      carbs:    perMealCarbs,
-      fiber:    perMealFiber,
-      warnOverFifty,
+      protein:  per.protein,
+      carbs:    per.carbs,
+      fat:      per.fat,
+      fiber:    per.fiber,
+      calories: per.calories,
+      warnOverFifty: per.carbs > CARB_WARN_THRESHOLD,
     }))
-    return { meals }
+    return { meals, ...consistency }
   }
 
   // Training day
-  const { trainingTime, preWorkoutTiming } = input
-  const { preIdx, postIdx } = getSlots(N, trainingTime)
-  const comp = preWorkoutComposition(preWorkoutTiming)
-  const preFatShare   = perMealFat   * comp.fatShare
-  const preFiberShare = perMealFiber * comp.fiberShare
-  const { otherFat, otherFiber } = redistribute({
-    perMealFat, perMealFiber, N, preFatShare, preFiberShare,
-  })
+  const layout = getTrainingDayLayout(N, trainingTime)
+  const dist = distributeTrainingDay({ protein, carbs, fat, fiber, N, carbWeight, fatWeight })
 
-  const meals = Array.from({ length: N }, (_, i) => {
-    const isPre = i === preIdx
-    const isPost = i === postIdx
+  const meals = layout.labels.map((name, i) => {
+    const isPre  = i === layout.preIdx
+    const isPost = i === layout.postIdx
+    const isPeri = isPre || isPost
+    const macros = isPeri ? dist.peri : dist.regular
     return {
       idx: i,
-      name: names[i] || `Meal ${i + 1}`,
-      label: isPre ? 'Pre-Workout' : isPost ? 'Post-Workout' : null,
-      carbsType: isPre ? comp.carbsType : isPost ? 'complex' : 'mixed',
-      calories: perMealCalories,
-      protein:  perMealProtein,
-      fat:      isPre ? preFatShare   : otherFat,
-      carbs:    perMealCarbs,
-      fiber:    isPre ? preFiberShare : otherFiber,
-      warnOverFifty,
+      name,
+      role: isPeri ? 'peri' : 'regular',
+      carbsType: isPre ? 'simple' : isPost ? 'complex' : 'mixed',
+      protein:  macros.protein,
+      carbs:    macros.carbs,
+      fat:      macros.fat,
+      fiber:    macros.fiber,
+      calories: macros.calories,
+      warnOverFifty: macros.carbs > CARB_WARN_THRESHOLD,
     }
   })
 
-  return { meals }
+  return { meals, ...consistency }
 }
 ```
 
-- [ ] **Step 4: Run tests, all pass**
+- [ ] **Step 4: Tests pass**
 
 Run: `npm test src/features/calculators/meal-frequency/planner.test.js`
-Expected: PASS, 13 tests.
+Expected: PASS, 12 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/features/calculators/meal-frequency/planner.js src/features/calculators/meal-frequency/planner.test.js
-git commit -m "feat(meal-frequency): add core day-plan builder with training/non-training modes"
+git commit -m "feat(meal-frequency): add planner orchestrator combining slots + distribution"
 ```
 
 ---
 
 ## Task 2.5: Calculator component — page shell + inputs
 
-Spec reference: §4.2
+Spec reference: §4.2. **Note the difference from the original Task 2.5**: the pre-workout-timing 3-button input is REMOVED. Two new inputs replace it: peri-workout carb weight slider + peri-workout fat weight slider.
 
 **Files:**
 - Create: `src/features/calculators/MealFrequencyCalculator.jsx`
@@ -1823,22 +2078,16 @@ Spec reference: §4.2
 Create `src/features/calculators/MealFrequencyCalculator.jsx`:
 
 ```jsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
-import { buildDayPlan, suggestedMealCount } from './meal-frequency/planner'
-import { PRE_TIMING } from './meal-frequency/compositionRules'
+import { buildDayPlan } from './meal-frequency/planner'
+import { defaultMealCount, suggestMealCount } from './meal-frequency/mealCount'
 
 const TRAINING_TIMES = [
-  { id: 'morning', label: 'Morning' },
-  { id: 'midday',  label: 'Midday' },
-  { id: 'evening', label: 'Evening' },
-]
-
-const PRE_TIMINGS = [
-  { id: PRE_TIMING.OVER_3HR,        label: '3+ hours before' },
-  { id: PRE_TIMING.ONE_TO_THREE_HR, label: '1–3 hours before' },
-  { id: PRE_TIMING.UNDER_1HR,       label: '<1 hour before' },
+  { id: 'morning',   label: 'Morning' },
+  { id: 'afternoon', label: 'Afternoon' },
+  { id: 'evening',   label: 'Evening' },
 ]
 
 export default function MealFrequencyCalculator() {
@@ -1848,37 +2097,57 @@ export default function MealFrequencyCalculator() {
   const [carbs,    setCarbs]    = useState('')
   const [fiber,    setFiber]    = useState('25')
 
-  const [dayType,           setDayType]           = useState('nonTraining')
-  const [trainingTime,      setTrainingTime]      = useState('midday')
-  const [preWorkoutTiming,  setPreWorkoutTiming]  = useState(PRE_TIMING.ONE_TO_THREE_HR)
+  const [dayType,      setDayType]      = useState('rest')
+  const [trainingTime, setTrainingTime] = useState('afternoon')
+  const [carbWeight,   setCarbWeight]   = useState(0.65)
+  const [fatWeight,    setFatWeight]    = useState(0.15)
+
+  const [mealCount,    setMealCount]    = useState(defaultMealCount('rest'))
+  const [userOverrodeN, setUserOverrodeN] = useState(false)
 
   const carbsNum = parseFloat(carbs) || 0
-  const suggestedN = useMemo(() => suggestedMealCount(carbsNum), [carbsNum])
-  const [mealCount, setMealCount] = useState(5)
 
-  // Sync mealCount to suggestion when carbs change (only if user hasn't manually overridden recently — simplest: just sync)
-  useMemo(() => {
-    if (carbsNum > 0) setMealCount(suggestedN)
-  }, [carbsNum, suggestedN])
+  // Re-suggest meal count when dayType / carbs / carbWeight change — UNLESS user has overridden
+  const suggestion = useMemo(() => {
+    if (carbsNum <= 0) return null
+    return suggestMealCount({ dayType, dailyCarbs: carbsNum, carbWeight })
+  }, [dayType, carbsNum, carbWeight])
+
+  useEffect(() => {
+    if (suggestion && !userOverrodeN) setMealCount(suggestion.N)
+  }, [suggestion, userOverrodeN])
+
+  // Reset override flag when daytype changes (fresh start)
+  useEffect(() => {
+    setUserOverrodeN(false)
+    setMealCount(defaultMealCount(dayType))
+  }, [dayType])
 
   const plan = useMemo(() => {
-    if (!calories || !protein || !fat || !carbs || !fiber) return null
+    if (!protein || !fat || !carbs || !fiber) return null
     return buildDayPlan({
-      calories: parseFloat(calories),
+      calories: parseFloat(calories) || 0,
       protein:  parseFloat(protein),
       fat:      parseFloat(fat),
       carbs:    parseFloat(carbs),
       fiber:    parseFloat(fiber),
-      mealCount,
+      N: mealCount,
       dayType,
       trainingTime,
-      preWorkoutTiming,
+      carbWeight,
+      fatWeight,
     })
-  }, [calories, protein, fat, carbs, fiber, mealCount, dayType, trainingTime, preWorkoutTiming])
+  }, [calories, protein, fat, carbs, fiber, mealCount, dayType, trainingTime, carbWeight, fatWeight])
+
+  const overrideMealCount = (n) => {
+    setUserOverrodeN(true)
+    setMealCount(n)
+  }
 
   const reset = () => {
     setCalories(''); setProtein(''); setFat(''); setCarbs(''); setFiber('25')
-    setDayType('nonTraining'); setMealCount(5)
+    setDayType('rest'); setCarbWeight(0.65); setFatWeight(0.15)
+    setUserOverrodeN(false); setMealCount(defaultMealCount('rest'))
   }
 
   return (
@@ -1895,7 +2164,7 @@ export default function MealFrequencyCalculator() {
             Meal Frequency <span className="text-da-cyan">Planner</span>
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto leading-relaxed">
-            Turn your daily macros into a structured eating plan built around T1D dosing accuracy and the Three-Hour Rule.
+            Turn your daily macros into a structured eating plan — peri-workout-weighted, dosing-accurate, and built from Nicholas's coaching system.
           </p>
         </div>
       </section>
@@ -1924,21 +2193,9 @@ export default function MealFrequencyCalculator() {
               ))}
             </div>
 
-            {/* Meal count */}
-            {carbsNum > 0 && (
-              <div>
-                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Meal Count</label>
-                <p className="text-xs text-white/50 mb-2">
-                  With <strong className="text-white">{carbsNum}g</strong> carbs, we recommend <strong className="text-da-cyan">{suggestedN} meals</strong> — keeps each meal at ~{(carbsNum / suggestedN).toFixed(0)}g carbs (within the 35–45g dosing range).
-                </p>
-                <div className="grid grid-cols-5 gap-2">
-                  {[3, 4, 5, 6, 7].map((n) => (
-                    <button key={n} type="button" onClick={() => setMealCount(n)}
-                      className={`py-3 rounded-lg ${mealCount === n ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
-                      {n}
-                    </button>
-                  ))}
-                </div>
+            {plan?.macroConsistencyWarning && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-xs text-yellow-200">
+                ⚠️ Your stated macros don't match your stated calories (off by {Math.round(plan.macroCalorieDelta)} kcal). The plan uses your macros — double-check your numbers.
               </div>
             )}
 
@@ -1946,10 +2203,10 @@ export default function MealFrequencyCalculator() {
             <div>
               <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Day Type</label>
               <div className="grid grid-cols-2 gap-2">
-                {['nonTraining', 'training'].map((d) => (
+                {[['rest', 'Rest Day'], ['training', 'Training Day']].map(([d, lbl]) => (
                   <button key={d} type="button" onClick={() => setDayType(d)}
                     className={`py-3 rounded-lg ${dayType === d ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
-                    {d === 'nonTraining' ? 'Non-Training Day' : 'Training Day'}
+                    {lbl}
                   </button>
                 ))}
               </div>
@@ -1969,18 +2226,56 @@ export default function MealFrequencyCalculator() {
                     ))}
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Pre-Workout Meal Timing</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {PRE_TIMINGS.map((t) => (
-                      <button key={t.id} type="button" onClick={() => setPreWorkoutTiming(t.id)}
-                        className={`py-3 rounded-lg text-sm ${preWorkoutTiming === t.id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">
+                    Peri-Workout Carb Weight — {Math.round(carbWeight * 100)}%
+                  </label>
+                  <p className="text-xs text-white/40 mb-2">Fraction of daily carbs in the pre + post workout meals combined. Sheet default: 65%.</p>
+                  <input type="range" min="0.40" max="0.80" step="0.05" value={carbWeight}
+                    onChange={(e) => setCarbWeight(parseFloat(e.target.value))}
+                    className="w-full accent-da-cyan" />
+                </div>
+
+                <div>
+                  <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">
+                    Peri-Workout Fat Weight — {Math.round(fatWeight * 100)}%
+                  </label>
+                  <p className="text-xs text-white/40 mb-2">Fraction of daily fat in pre + post combined. Lower keeps peri meals light. Sheet default: 15%.</p>
+                  <input type="range" min="0.10" max="0.30" step="0.05" value={fatWeight}
+                    onChange={(e) => setFatWeight(parseFloat(e.target.value))}
+                    className="w-full accent-da-cyan" />
                 </div>
               </>
+            )}
+
+            {/* Meal count */}
+            {carbsNum > 0 && (
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Meal Count</label>
+                {suggestion && (
+                  <p className="text-xs text-white/50 mb-2">
+                    Suggested: <strong className="text-da-cyan">{suggestion.N} meals</strong>
+                    {dayType === 'training'
+                      ? ` (peri ~${suggestion.peri.toFixed(1)}g carbs, regular ~${suggestion.regular.toFixed(1)}g carbs)`
+                      : ` (each meal ~${suggestion.perMeal.toFixed(1)}g carbs)`
+                    }
+                  </p>
+                )}
+                {suggestion?.suggestReducePeriWeight && (
+                  <p className="text-xs text-yellow-300 mb-2">
+                    ⚠️ Peri-workout meals alone would exceed 45g carbs. Consider lowering the carb weight above.
+                  </p>
+                )}
+                <div className="grid grid-cols-5 gap-2">
+                  {[3, 4, 5, 6, 7].map((n) => (
+                    <button key={n} type="button" onClick={() => overrideMealCount(n)}
+                      className={`py-3 rounded-lg ${mealCount === n ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
           </div>
@@ -2014,13 +2309,13 @@ function Disclaimer() {
   return (
     <div className="border-l-2 border-da-gold/50 pl-4 py-3 text-xs text-white/50 leading-relaxed mt-12">
       <p className="text-da-gold/80 font-bold uppercase tracking-wider mb-2">⚠️ Educational tool — not medical advice</p>
-      <p>The Meal Frequency Planner produces structural eating templates based on T1D dosing-accuracy principles. Individual macro needs, insulin responses, and meal tolerances vary widely. The 35–45g carbs-per-meal rule is a heuristic. Always check glucose around meals. Consult your endocrinologist or registered dietitian before significant dietary changes.</p>
+      <p>The Meal Frequency Planner produces structural eating templates based on Nicholas's coaching system. Individual macro needs, insulin responses, and meal tolerances vary widely. The 35–45g carbs-per-meal range is a heuristic, not a prescription. Always check glucose around meals. Consult your endocrinologist or registered dietitian before significant dietary changes.</p>
     </div>
   )
 }
 ```
 
-- [ ] **Step 2: Visual verify (build only — no route yet)**
+- [ ] **Step 2: Build verify**
 
 Run: `npm run build`
 Expected: build succeeds.
@@ -2029,34 +2324,34 @@ Expected: build succeeds.
 
 ```bash
 git add src/features/calculators/MealFrequencyCalculator.jsx
-git commit -m "feat(meal-frequency): add page shell and all inputs (day-type, training-time, pre-workout-timing)"
+git commit -m "feat(meal-frequency): add page shell + inputs (peri-weight sliders, day type, training time, smart meal count)"
 ```
 
 ---
 
 ## Task 2.6: Meal timeline rendering
 
-Spec reference: §4.6 cards 3–4
+Spec reference: §4.7 card 3
 
 **Files:**
 - Modify: `src/features/calculators/MealFrequencyCalculator.jsx`
 
-- [ ] **Step 1: Replace `MealTimeline` placeholder with the real component**
+- [ ] **Step 1: Replace the `MealTimeline` placeholder**
 
-In `MealFrequencyCalculator.jsx`, replace the `MealTimeline` placeholder:
+In `MealFrequencyCalculator.jsx`, replace the `MealTimeline` placeholder function with:
 
 ```jsx
 function MealTimeline({ plan, dayType }) {
   return (
     <div className="space-y-3">
       <div className="bg-da-card rounded-2xl p-6">
-        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-1">{dayType === 'training' ? 'Training Day' : 'Non-Training Day'} Meal Plan</p>
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-1">{dayType === 'training' ? 'Training Day' : 'Rest Day'} Meal Plan</p>
         <p className="text-white/40 text-sm">Daily totals stay constant across day types — only the structure shifts.</p>
       </div>
 
       {plan.meals.map((meal) => {
-        const isPre  = meal.label === 'Pre-Workout'
-        const isPost = meal.label === 'Post-Workout'
+        const isPre  = meal.name === 'Pre-Workout'
+        const isPost = meal.name === 'Post-Workout'
         const accentColor = isPre ? '#46C0ED' : isPost ? '#FCC826' : null
         const accentIcon = isPre ? '⚡' : isPost ? '💪' : null
 
@@ -2067,9 +2362,9 @@ function MealTimeline({ plan, dayType }) {
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                {meal.label && (
+                {meal.role === 'peri' && (
                   <p className="uppercase tracking-wider text-xs font-bold mb-1" style={{ color: accentColor }}>
-                    {accentIcon} {meal.label}
+                    {accentIcon} Peri-Workout
                   </p>
                 )}
                 <h3 className="text-xl font-black text-white uppercase tracking-wide">{meal.name}</h3>
@@ -2113,14 +2408,14 @@ Expected: success.
 
 ```bash
 git add src/features/calculators/MealFrequencyCalculator.jsx
-git commit -m "feat(meal-frequency): render meal timeline cards with pre/post-workout accents"
+git commit -m "feat(meal-frequency): render meal timeline cards with peri/regular labels"
 ```
 
 ---
 
 ## Task 2.7: Educational cards + coaching notes
 
-Spec reference: §4.6 cards 5–7, §4.7
+Spec reference: §4.7 cards 4–6, §4.7.1
 
 **Files:**
 - Modify: `src/features/calculators/MealFrequencyCalculator.jsx`
@@ -2137,7 +2432,7 @@ function EducationalCards() {
       <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan">
         <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">🕒 The Three-Hour Rule</p>
         <div className="text-white/70 space-y-3 text-sm leading-relaxed">
-          <p>The timing of your pre-workout meal changes how you should dose insulin for it.</p>
+          <p>The <strong className="text-white">timing</strong> of your pre-workout meal changes how you should <strong className="text-white">dose insulin</strong> for it (even though the meal's macros stay the same in this plan).</p>
           <p><strong className="text-white">A meal 3+ hours before training</strong> can be dosed normally — most short-acting insulin has a ~4-hour action window, so by the time you train you'll have roughly 25% of that bolus still on board. Great for strength work; minimal hypo risk for endurance.</p>
           <p><strong className="text-white">A meal within 1 hour of training</strong> is best dosed at roughly 25% of your usual amount (a 75% reduction). The remaining 75% would otherwise stack with exercise-driven glucose drops.</p>
           <p>
@@ -2169,6 +2464,7 @@ function EducationalCards() {
           <li>💧 <strong className="text-white">Eat in a relaxed state.</strong> Suit meals to your life schedule, not the other way around.</li>
           <li>⚠️ <strong className="text-white">Carbs used to treat hypos count.</strong> Adjust meals down on days you've had to treat lows.</li>
           <li>🎯 <strong className="text-white">This is a template, not a rule.</strong> Shift meal timing as needed — daily totals are what matter.</li>
+          <li>🍎 <strong className="text-white">Pre-workout = simple carbs, post-workout = complex carbs.</strong> Same macro amounts, different carb types for utilization and replenishment.</li>
         </ul>
       </div>
     </div>
@@ -2185,7 +2481,7 @@ Expected: success.
 
 ```bash
 git add src/features/calculators/MealFrequencyCalculator.jsx
-git commit -m "feat(meal-frequency): add educational cards (Three-Hour Rule, post-workout sensitivity, coaching notes)"
+git commit -m "feat(meal-frequency): add educational cards (Three-Hour Rule, post-workout sensitivity, coach notes)"
 ```
 
 ---
@@ -2219,7 +2515,7 @@ In `src/pages/FreeResourcesPage.jsx`, append to the `calculators` array (after t
   slug: 'meal-frequency',
   name: 'Meal Frequency Planner',
   tagline: 'Structure your day around dosing accuracy',
-  description: 'Plug in your daily calorie and macro targets — get a structured eating plan that respects the 35-45g carbs-per-meal dosing rule. Generates non-training and training-day templates with pre/post-workout meals adapted to the Three-Hour Rule.',
+  description: 'Plug in your daily macros — get a structured eating plan with peri-workout-weighted distribution (65% carbs to pre/post by default), built from Nicholas\'s actual coaching system. Adapts to training time and respects the 35-45g carbs-per-meal dosing rule.',
   badge: 'NEW',
 },
 ```
@@ -2231,19 +2527,49 @@ Update the hero copy from `Five free` to `Six free` (you set this in Task 1.8).
 Run: `npm run dev` (if not already running).
 
 Test scenarios:
-- http://localhost:3000/free-resources → verify 6 cards, "Meal Frequency Planner" card present
-- Click into the new card → http://localhost:3000/calculators/meal-frequency
-- Enter: 2400 cal, 180g protein, 70g fat, 240g carbs, 25g fiber
-- Verify meal-count suggestion shows "6 meals" with reasoning copy
-- Toggle to Training Day → verify training-time + pre-workout-timing inputs appear
-- Select Evening + <1hr → verify meal timeline shows:
-  - Pre-Workout meal (4th slot) with ⚡ icon, 0g fat, 0g fiber, simple carbs
-  - Post-Workout meal (5th slot) with 💪 icon, complex carbs, regular fat/fiber
-  - Other meals have boosted fat/fiber (redistribution working)
-- Verify educational cards (Three-Hour Rule + Post-Workout + Coach's Notes) render
-- Click "Use the Magic Ratio Calculator" link → confirms it navigates to `/calculators/magic-ratio`
-- Test with low-carb input (carbs=100g, 4 meals) → verify per-meal carbs is 25g, no warning flag
-- Test with high-carb input (carbs=320g, override to 5 meals) → verify warning flag on each meal
+
+**Sheet-match check:**
+- Navigate to http://localhost:3000/calculators/meal-frequency
+- Enter: **1700 cal / 100g P / 100g C / 100g F / 25g fiber** (fiber tweaked from sheet's 30g to our default)
+- Day type: **Training Day**, Training time: **Evening**
+- Verify carb weight slider shows 65%, fat weight shows 15% (defaults)
+- Verify meal count shows **4** (default)
+- Verify the 4 meal cards show:
+  - **Breakfast** — Cal 552.5, P 25, C 17.5, F 42.5, fiber 6.25
+  - **Lunch** — same as Breakfast
+  - **Pre-Workout** ⚡ — Cal 297.5, P 25, C 32.5, F 7.5, fiber 6.25
+  - **Post-Workout** 💪 — Cal 297.5, P 25, C 32.5, F 7.5, fiber 6.25
+- (Note: fiber per meal = 25/4 = 6.25 since we use 25g default, not the sheet's 30g)
+
+**Slot ordering check:**
+- Switch Training Time to **Morning** → meals should reorder: Pre, Post, Lunch, Dinner
+- Switch to **Afternoon** → Breakfast, Pre, Post, Dinner
+
+**Smart-bump check:**
+- Reset to Training Day, set carbs to **300g** (other macros: 150P / 80F / 25fiber, calories whatever)
+- Verify suggestion bumps meal count to **5** (or higher) with reasoning copy
+- Verify no 50g warning flags on regular meals
+
+**Peri-weight warning check:**
+- Set carbs to **150g**, leave carb weight at 65% → peri = 48.75g per meal (over 45)
+- Verify the "Peri-workout meals alone would exceed 45g carbs. Consider lowering the carb weight above." secondary suggestion appears
+
+**Rest-day check:**
+- Switch Day Type to **Rest Day**
+- Verify N defaults to **3**
+- With 100g carbs: Breakfast, Lunch, Dinner — each at 33.3g carbs
+- With 200g carbs: suggestion bumps to **5** meals
+
+**Consistency check:**
+- Enter calories=2000, P=100, C=100, F=100 → macros imply 1700 cal, off by 300 (>10%)
+- Verify yellow consistency warning appears
+
+**Cross-tool link check:**
+- Click "Use the Magic Ratio Calculator" link → navigates to `/calculators/magic-ratio`
+
+**Free Resources check:**
+- Navigate to http://localhost:3000/free-resources
+- Verify 6 cards render with "Meal Frequency Planner" labeled NEW
 
 - [ ] **Step 4: Final commit**
 
@@ -2252,7 +2578,8 @@ git add src/App.jsx src/pages/FreeResourcesPage.jsx
 git commit -m "feat(meal-frequency): wire route + add to Free Resources page"
 ```
 
-**Phase 2 complete.** `/calculators/meal-frequency` is live, 6 calcs on `/free-resources`.
+**Phase 2 complete.** `/calculators/meal-frequency` is live, 6 calcs on `/free-resources`, math sheet-verified.
+
 
 ---
 
@@ -2264,7 +2591,7 @@ After both phases complete, run the full test suite once more to verify no regre
 npm test
 ```
 
-Expected: all tests pass across `pre-workout-glucose/` and `meal-frequency/` modules — roughly 60 unit tests total.
+Expected: all tests pass across `pre-workout-glucose/` and `meal-frequency/` modules — roughly 80 unit tests total (40 for each calculator).
 
 Then do a final cross-browser / mobile-width visual pass:
 - Desktop (1440×900): 6-card grid, 2 columns

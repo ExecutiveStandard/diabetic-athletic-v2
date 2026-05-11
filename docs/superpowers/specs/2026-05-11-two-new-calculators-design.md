@@ -229,128 +229,162 @@ Output copy: *"Consume **{grams_needed}g** of fast-acting carbs (e.g., glucose t
 
 ### 4.1 Purpose
 
-After a client receives their daily macro targets (from the TDEE calculator or elsewhere), they ask: *"How do I actually eat this?"* This calculator answers that by:
+After a client receives their daily macro targets (from the TDEE calculator or elsewhere), they ask: *"How do I actually eat this?"* This calculator answers by reproducing — in a self-serve form — the same **peri-workout-weighted distribution model** Nicholas uses in his "Done For You Check-In System" master spreadsheet (Macro Timing tab). Specifically:
 
-1. Spreading the daily macros across **N meals** (auto-suggested by the 35–45g-carbs-per-meal dosing rule)
-2. Producing a **non-training-day** template AND a **training-day** template with the same daily totals
-3. Slotting **Pre-Workout** and **Post-Workout** meals into the training-day template based on training time of day, with composition adapted to the **Three-Hour Rule**
-4. Surfacing coaching notes that link to the existing **Magic Ratio Calculator** for insulin sensitivity adjustments
+1. Daily macros distribute across **N meals** using configurable peri-workout **weights** — carbs concentrate around training (default **65%** of daily carbs in the pre + post workout meals combined), while fat **avoids** training (default **15%** of daily fat in pre + post) to keep pre-workout meals light for dosing accuracy and digestive comfort.
+2. Defaults are **4 training-day meals** and **3 rest-day meals** (matching the master sheet). User can override 3–7 with smart suggestions when high daily-carb totals would force any meal above 50g (the dosing-accuracy ceiling).
+3. Output produces a **non-training-day** template AND a **training-day** template with **identical daily totals** — only structure shifts.
+4. Educational cards surface the **Three-Hour Rule**, **post-workout insulin sensitivity**, and other coaching context — linking to the existing **Magic Ratio Calculator** for insulin adjustments.
 
 ### 4.2 Inputs
 
 | # | Field | Type | Required | Notes |
 |---|---|---|---|---|
-| 1 | Daily calories | Number | Yes | Range: 1000–6000. |
+| 1 | Daily calories | Number | Yes | Range: 1000–6000. Cross-checked against macro-derived calories (consistency warning if off by >10%). |
 | 2 | Daily protein | Number (g) | Yes | Range: 30–400. |
 | 3 | Daily fat | Number (g) | Yes | Range: 20–250. |
 | 4 | Daily carbs | Number (g) | Yes | Range: 30–700. |
 | 5 | Daily fiber | Number (g) | Yes | Default **25**, editable. Range: 10–60. |
-| 6 | Day type toggle | Segmented (Non-training / Training) | Yes | Drives whether the training-day inputs appear. |
-| 7 | Training time *(training-day only)* | 3-button (Morning / Midday / Evening) | Conditional | Morning = first meal slot is post-workout. Evening = last meal slot is post-workout. Midday = mid-day workout. |
-| 8 | Pre-workout meal timing *(training-day only)* | 3-button (3+ hrs / 1–3 hrs / <1 hr before training) | Conditional | Adapts pre-workout meal composition (see §4.5). |
-| 9 | Meal count | Number (3–7) | Yes | Auto-suggested from `ceil(daily_carbs / 40)`, user can override. Live recalculation. |
+| 6 | Day type toggle | Segmented (Non-training / Training) | Yes | Drives whether training-day inputs appear. |
+| 7 | Training time *(training-day only)* | 3-button (Morning / Afternoon / Evening) | Conditional | Determines chronological slot ordering. |
+| 8 | Peri-workout **carb** weight *(training-day only)* | Slider, default **0.65**, range **0.40–0.80** | Conditional | Fraction of daily carbs that goes to the **pre + post** workout meals combined. Default matches master sheet. |
+| 9 | Peri-workout **fat** weight *(training-day only)* | Slider, default **0.15**, range **0.10–0.30** | Conditional | Fraction of daily fat that goes to pre + post combined. Default matches master sheet. |
+| 10 | Meal count | Selector (3–7) | Yes | Defaults: **4 training / 3 rest**. Smart suggestion bumps the default upward when the math would force any meal over 45g carbs (see §4.3). |
 
-A consistency check (warning, non-blocking) verifies that `protein×4 + fat×9 + carbs×4` is within ±10% of stated calories. If outside that range, show: *"Heads up — your stated macros don't match your stated calories. Double-check your numbers."*
+A **macro-calorie consistency check** (warning, non-blocking) verifies that `protein×4 + fat×9 + carbs×4` is within ±10% of stated calories. If outside that range: *"Heads up — your stated macros don't add up to your stated calories. Double-check your numbers."* The calculator still produces output using the macros (treated as source of truth).
 
 ### 4.3 Meal Count Mechanic
 
-```
-suggested_meal_count = ceil(daily_carbs / 40)
-clamped              = clamp(suggested_meal_count, 3, 7)
-default_meal_count   = clamped
-```
+**Defaults** (per master sheet):
+- Training day → **4 meals** (2 peri + 2 regular)
+- Rest day → **3 meals**
 
-The suggestion is shown prominently with reasoning copy:
-
-> *"With **{daily_carbs}g** of carbs spread evenly, **{N} meals** keeps each meal at **{daily_carbs/N | round 1}g** of carbs — within the 35–45g dosing-accuracy sweet spot."*
-
-User can override via a 3–7 selector. If any meal exceeds 50g carbs after override, a warning flag (`⚠️`) appears on that meal card:
-
-> *"This meal exceeds 50g carbs. Glycemic index behavior changes past ~50g — dosing accuracy may suffer. Consider increasing your meal count."*
-
-### 4.4 Equal Distribution (Non-Training Day)
+**Smart bump suggestion** — fired when defaults would produce any meal exceeding **45g** carbs (the top of the dosing-accuracy sweet spot, with 5g headroom below the 50g hard threshold):
 
 ```
-per_meal_calories = daily_calories / N
-per_meal_protein  = daily_protein  / N
-per_meal_fat      = daily_fat      / N
-per_meal_carbs    = daily_carbs    / N
-per_meal_fiber    = daily_fiber    / N
+# Training day with peri weights
+peri_carbs_each    = (carb_weight × daily_carbs) / 2
+regular_carbs_each = ((1 - carb_weight) × daily_carbs) / (N - 2)
+
+# Rest day
+rest_carbs_each    = daily_carbs / N
 ```
 
-Meal names assigned by `N`:
+Auto-suggest a higher `N` when either `regular_carbs_each > 45` or `rest_carbs_each > 45`. The calculator shows the suggestion prominently with reasoning copy:
 
-| N | Names |
+> *"With **{daily_carbs}g** daily carbs and the default **{carb_weight×100}%** peri-workout weighting, **{N} training meals** would land each meal at {≤45g} carbs — within the 35–45g dosing-accuracy sweet spot. We suggest **{suggested_N}**."*
+
+User can override to anything in the 3–7 range regardless of suggestion. **Warning flag** (`⚠️`) appears on any meal exceeding 50g carbs:
+
+> *"This meal exceeds 50g carbs. Glycemic index behavior changes past ~50g — dosing accuracy may suffer. Consider increasing your meal count or reducing the peri-workout carb weight."*
+
+**Edge case** — peri meal carbs themselves exceed 45g (happens at high daily-carb totals like 250g+ where `0.65 × 250 / 2 = 81g > 45g`): show a secondary suggestion to **reduce the peri-workout carb weight** (e.g., from 0.65 → 0.50). Increasing meal count cannot fix this because peri meals are always exactly 2 in count.
+
+### 4.4 Distribution Math — Training Day
+
+Given inputs: `daily_carbs`, `daily_protein`, `daily_fat`, `daily_fiber`, `N`, `carb_weight`, `fat_weight`.
+
+There are always exactly **2 peri-workout meals** (Pre + Post) and **N − 2 regular meals**.
+
+```
+# CARBS — weighted toward peri
+peri_carbs_total    = carb_weight × daily_carbs
+regular_carbs_total = (1 - carb_weight) × daily_carbs
+peri_carbs_each     = peri_carbs_total / 2
+regular_carbs_each  = regular_carbs_total / (N - 2)
+
+# FAT — weighted away from peri
+peri_fat_total    = fat_weight × daily_fat
+regular_fat_total = (1 - fat_weight) × daily_fat
+peri_fat_each     = peri_fat_total / 2
+regular_fat_each  = regular_fat_total / (N - 2)
+
+# PROTEIN — equal across ALL meals
+per_meal_protein = daily_protein / N
+
+# FIBER — equal across ALL meals
+per_meal_fiber = daily_fiber / N
+
+# CALORIES — derived from each meal's macros, NOT distributed separately
+meal_calories = (meal_protein × 4) + (meal_carbs × 4) + (meal_fat × 9)
+```
+
+**Worked example** (Nicholas's sheet, training-day defaults: 1700 cal / 100g P / 100g C / 100g F / 30g fiber, N = 4, carb_weight = 0.65, fat_weight = 0.15):
+
+| Slot | Protein | Carbs | Fat | Fiber | Calories (derived) |
+|---|---:|---:|---:|---:|---:|
+| Pre-Workout | 25 | **32.5** | **7.5** | 7.5 | **297.5** |
+| Post-Workout | 25 | **32.5** | **7.5** | 7.5 | **297.5** |
+| Regular meal 1 | 25 | 17.5 | 42.5 | 7.5 | **552.5** |
+| Regular meal 2 | 25 | 17.5 | 42.5 | 7.5 | **552.5** |
+| **Daily total** | **100** | **100** | **100** | **30** | **1700** ✅ |
+
+Matches master sheet exactly.
+
+### 4.5 Distribution Math — Rest Day
+
+Equal distribution across all N rest-day meals (default N = 3):
+
+```
+each_meal_protein = daily_protein / N
+each_meal_carbs   = daily_carbs   / N
+each_meal_fat     = daily_fat     / N
+each_meal_fiber   = daily_fiber   / N
+each_meal_cals    = (protein × 4) + (carbs × 4) + (fat × 9)
+```
+
+**Worked example** (same daily totals as above, N = 3):
+
+| Slot | Protein | Carbs | Fat | Fiber | Calories |
+|---|---:|---:|---:|---:|---:|
+| Breakfast | 33.3 | 33.3 | 33.3 | 10 | 566.7 |
+| Lunch | 33.3 | 33.3 | 33.3 | 10 | 566.7 |
+| Dinner | 33.3 | 33.3 | 33.3 | 10 | 566.7 |
+| **Daily total** | **100** | **100** | **100** | **30** | **1700** ✅ |
+
+Matches master sheet exactly.
+
+### 4.6 Slot Template & Chronological Ordering
+
+The master sheet uses a fixed 6-slot chronological template with some slots **zeroed out** depending on training time. Our calculator generalizes this for variable meal counts while preserving the chronological ordering principle.
+
+**Slot ordering on training day** — peri meals are placed chronologically around the training window; regular meals fill the remaining slots in time order:
+
+| Training time | Slot order (chronological) |
 |---|---|
-| 3 | Breakfast, Lunch, Supper |
-| 4 | Breakfast, Lunch, Snack, Supper |
-| 5 | Breakfast, Mid-Morning Snack, Lunch, Afternoon Snack, Supper |
-| 6 | Breakfast, Mid-Morning Snack, Lunch, Afternoon Snack, Supper, Evening Snack |
-| 7 | Breakfast, Mid-Morning Snack, Lunch, Afternoon Snack, Supper, Evening Snack, Late Snack |
+| **Morning** (e.g., 6–9am) | **Pre-Workout** → **Post-Workout** → (Lunch) → (Dinner) → … |
+| **Afternoon** (e.g., midday–4pm) | (Breakfast) → **Pre-Workout** → **Post-Workout** → (Dinner) → … |
+| **Evening** (e.g., 5–8pm) | (Breakfast) → (Lunch) → **Pre-Workout** → **Post-Workout** → (Late snack) → … |
 
-### 4.5 Training-Day Rules
+Where `()` are regular meals filling around the Pre/Post anchor.
 
-Daily totals are **identical** to the non-training day. Two of the N meal slots are **re-labeled** as Pre-Workout and Post-Workout (depending on training time), and the **composition** of the pre-workout meal adapts per the Three-Hour Rule.
+**Slot template per (N, training_time)** is deterministic. See **Appendix A** for the full table covering N = 3..7.
 
-#### 4.5.1 Slot assignment by training time
+**Meal labels** — combine the slot's position name with the meal's role:
+- Regular slots use chronological names: **Breakfast / Mid-Morning Snack / Lunch / Afternoon Snack / Dinner / Evening Snack / Late Snack** (subset chosen by N)
+- Peri slots are labeled **"Pre-Workout"** and **"Post-Workout"** (with cyan ⚡ and gold 💪 visual accents)
 
-| Training time | Pre-Workout slot | Post-Workout slot |
-|---|---|---|
-| Morning | Slot 1 (becomes "Pre-Workout") | Slot 2 (becomes "Post-Workout / Breakfast") |
-| Midday | Mid-morning slot or Lunch (whichever is closer in time) | Afternoon Snack or Lunch (whichever comes after) |
-| Evening | Afternoon Snack or Supper (whichever lands closer to training) | Supper or Evening Snack |
+### 4.7 Output Cards (in order)
 
-(Implementation will use a deterministic table per `(N, training_time)` combination; see Appendix A.)
-
-#### 4.5.2 Pre-Workout meal composition by timing
-
-| Pre-workout meal timing | Carbs (amount) | Carbs (type) | Protein | Fat | Fiber |
-|---|---|---|---|---|---|
-| **3+ hours before training** | Equal share | Complex | Equal share | **Equal share** | **Equal share** |
-| **1–3 hours before training** | Equal share | Mostly complex | Equal share | **Half share** | **Half share** |
-| **<1 hour before training** | Equal share | **Simple/refined** | Equal share | **0g** | **0g** |
-
-#### 4.5.3 Redistribution math (fat & fiber displaced from pre-workout meal)
-
-```
-# For "1–3 hrs before" case:
-pre_fat_share   = per_meal_fat × 0.5
-pre_fiber_share = per_meal_fiber × 0.5
-displaced_fat   = per_meal_fat   - pre_fat_share        # the 0.5× difference
-displaced_fiber = per_meal_fiber - pre_fiber_share
-
-# For "<1 hr before" case:
-pre_fat_share   = 0
-pre_fiber_share = 0
-displaced_fat   = per_meal_fat
-displaced_fiber = per_meal_fiber
-
-# Redistribute equally across the remaining (N-1) meals:
-each_other_meal_fat   = per_meal_fat   + (displaced_fat   / (N - 1))
-each_other_meal_fiber = per_meal_fiber + (displaced_fiber / (N - 1))
-```
-
-Carbs and protein are NOT redistributed — pre-workout meal keeps its equal share of both. Post-workout meal keeps its equal share of all macros and gets carbs from the *complex* type pool.
-
-### 4.6 Output Cards (in order)
-
-1. **Daily totals card**: confirms inputs + suggested meal count + reasoning copy.
-2. **Day-type toggle**: re-shows the same toggle from input section (sticky as user scrolls).
-3. **Meal timeline (Non-Training Day)**: card stack, one per meal, with name, time-of-day suggestion, macro breakdown, and example foods per meal.
-4. **Meal timeline (Training Day)**: same structure, with Pre-Workout and Post-Workout slots clearly labeled with cyan/gold accents and small ⚡ / 💪 glyphs respectively.
-5. **Three-Hour Rule explainer card**: educational. Links to `/calculators/insulin` (Magic Ratio).
-6. **Post-Workout Insulin Sensitivity card**: educational. Links to `/calculators/insulin`.
-7. **Coaching notes panel** (always visible):
+1. **Daily totals card**: confirms inputs + meal count + reasoning copy. Shows macro-derived calorie total alongside user-entered calories.
+2. **Day-type toggle**: re-shows the toggle from inputs (sticky as user scrolls).
+3. **Meal timeline**: card stack rendered in chronological order. Each meal card shows name + role label (Pre/Post if applicable) + macro breakdown (cal/P/C/F/fiber) + carbs-type indicator (simple/complex/mixed) + 50g warning flag if applicable.
+4. **🕒 Three-Hour Rule explainer card** *(educational, not in math)*: links to `/calculators/insulin` (Magic Ratio).
+5. **💉 Post-Workout Insulin Sensitivity card** *(educational, not in math)*: links to `/calculators/insulin`.
+6. **Coaching notes panel** (always visible):
    - 💧 *"Eat in a relaxed state — suit meals to your life schedule, not the other way around."*
    - ⚠️ *"Carbs used to treat hypos count toward your daily totals — adjust meals down on days you've had to treat lows."*
    - 🎯 *"This is a template, not a rule. Shift meal timing as needed. The daily totals are what matter."*
-8. **Disclaimer footer** (§4.8).
+   - 🍎 *"Pre-workout meals are weighted toward simple carbs for fast availability during training. Post-workout meals favor complex carbs for sustained replenishment."* (This is the carb-type *suggestion* — the math doesn't differ by type, but the meal-card label and example-foods list does.)
+7. **Disclaimer footer** (§4.8).
 
-### 4.7 Educational Card Copy (drafts)
+### 4.7.1 Educational Card Copy (drafts)
+
+These cards appear in the output regardless of inputs (after the meal timeline). They teach the dosing context — the calculator itself doesn't act on them.
 
 **🕒 Three-Hour Rule card:**
 
-> The timing of your pre-workout meal changes how you should dose insulin for it.
+> The **timing** of your pre-workout meal changes how you should **dose insulin** for it (even though the meal's macros stay the same in this plan).
 >
 > **A meal 3+ hours before training** can be dosed normally — most short-acting insulin has a ~4-hour action window, so by the time you train you'll have roughly 25% of that bolus still on board. That's a great state for strength work and not much hypo risk for endurance.
 >
@@ -407,10 +441,10 @@ src/features/calculators/
 │   ├── ThreeHourRuleCard.jsx
 │   ├── PostWorkoutSensitivityCard.jsx
 │   ├── lib/
-│   │   ├── planner.js                  # Main: buildDayPlan(inputs) → { nonTraining: Meal[], training: Meal[] }
-│   │   ├── slotAssignment.js           # Per-N + training-time slot template
-│   │   ├── compositionRules.js         # Pre-workout composition by timing
-│   │   └── redistribution.js           # Fat/fiber redistribution math
+│   │   ├── planner.js                  # Main: buildDayPlan(inputs) → { meals: Meal[] }
+│   │   ├── slotAssignment.js           # Per-(N, training_time) slot template
+│   │   ├── distribution.js             # Peri-weighted macro distribution math
+│   │   └── mealCount.js                # Defaults + smart bump suggestion
 │   └── planner.test.js
 ```
 
@@ -451,13 +485,15 @@ Vitest unit tests required (no E2E or integration tests in v1):
 - Unit conversion roundtrip preserves value within 0.1 mmol/L
 - IOB helper linear-decay math correct for boundary cases (0 min, DIA min, beyond DIA)
 
-**Calc #2 (`planner.test.js`):**
-- Auto meal-count is `ceil(carbs / 40)`, clamped to [3, 7]
-- Equal distribution sums to daily totals (within floating-point tolerance)
-- Pre-workout-fat/fiber redistribution preserves daily fat and fiber totals
-- Slot assignment per `(N, training_time)` combination produces expected labels
-- 50g carb warning triggers on overridden small meal-count
-- Macro consistency check (calories vs. macro-implied calories) triggers correctly
+**Calc #2 (`planner.test.js` + helpers):**
+- Default meal counts are 4 (training) and 3 (rest); both can be user-overridden to any 3..7 value
+- Smart bump suggestion fires when `regular_carbs_each > 45g` OR `rest_carbs_each > 45g` and produces the next-higher feasible N
+- Peri-weighted distribution sums to daily totals exactly (within floating-point tolerance) — sheet-verified at 1700 cal / 100g P / 100g C / 100g F / 30g fiber / N=4 / 0.65 / 0.15 → matches Pre 297.5, Post 297.5, Regulars 552.5 each
+- Rest-day equal distribution sums to daily totals (sheet-verified at same inputs / N=3 → 566.67 cal × 3)
+- Slot assignment per `(N, training_time)` combination produces expected chronological ordering (see Appendix A)
+- 50g carb warning fires on any meal exceeding 50g
+- Macro-calorie consistency check (calories vs. macro-derived calories) triggers when off by >10%
+- Edge-case: when peri meal carbs alone exceed 45g, the secondary "reduce peri weight" suggestion appears (since increasing N doesn't help peri meals)
 
 ### 5.7 Accessibility
 
@@ -515,19 +551,27 @@ These are intentionally **not** in v1 scope but worth tracking:
 
 ## Appendix A — Slot assignment table
 
-Deterministic mapping from `(meal_count N, training_time)` to which slot becomes Pre-Workout (PW) and Post-Workout (PoW).
+Deterministic mapping from `(meal_count N, training_time)` to **chronologically ordered** slot labels. Pre and Post are always adjacent. Indices are 0-based for implementation simplicity; labels read from left to right = first meal of day to last.
 
-Slot indices below are 1-based using the non-training-day naming from §4.4.
-
-| N | Morning training | Midday training | Evening training |
+| N | Morning training | Afternoon training | Evening training |
 |---|---|---|---|
-| 3 | PW=1 (becomes "Pre-Workout / Early Breakfast"), PoW=2 ("Post-Workout / Brunch") | PW=2 (Lunch becomes "Pre-Workout Lunch"), PoW=3 ("Post-Workout Supper") | PW=2 (Lunch), PoW=3 ("Post-Workout Supper") |
-| 4 | PW=1, PoW=2 | PW=2 (Lunch), PoW=3 (Snack becomes "Post-Workout") | PW=3 (Snack becomes "Pre-Workout"), PoW=4 ("Post-Workout Supper") |
-| 5 | PW=1, PoW=2 | PW=2 (Mid-morning becomes "Pre-Workout"), PoW=3 (Lunch becomes "Post-Workout") | PW=4 (Afternoon Snack), PoW=5 ("Post-Workout Supper") |
-| 6 | PW=1, PoW=2 | PW=3 (Lunch), PoW=4 (Afternoon Snack) | PW=4 (Afternoon Snack), PoW=5 ("Post-Workout Supper") |
-| 7 | PW=1, PoW=2 | PW=3 (Lunch), PoW=4 (Afternoon Snack) | PW=4 (Afternoon Snack), PoW=5 ("Post-Workout Supper") |
+| **3** | `[Pre, Post, Dinner]` (preIdx=0, postIdx=1) | `[Breakfast, Pre, Post]` (preIdx=1, postIdx=2) | `[Breakfast, Pre, Post]` (preIdx=1, postIdx=2) |
+| **4** | `[Pre, Post, Lunch, Dinner]` (preIdx=0, postIdx=1) | `[Breakfast, Pre, Post, Dinner]` (preIdx=1, postIdx=2) | `[Breakfast, Lunch, Pre, Post]` (preIdx=2, postIdx=3) |
+| **5** | `[Pre, Post, Lunch, Snack, Dinner]` (preIdx=0, postIdx=1) | `[Breakfast, Snack, Pre, Post, Dinner]` (preIdx=2, postIdx=3) | `[Breakfast, Lunch, Snack, Pre, Post]` (preIdx=3, postIdx=4) |
+| **6** | `[Pre, Post, Snack, Lunch, Snack, Dinner]` (preIdx=0, postIdx=1) | `[Breakfast, Snack, Pre, Post, Snack, Dinner]` (preIdx=2, postIdx=3) | `[Breakfast, Snack, Lunch, Snack, Pre, Post]` (preIdx=4, postIdx=5) |
+| **7** | `[Pre, Post, Snack, Lunch, Snack, Dinner, Late Snack]` (preIdx=0, postIdx=1) | `[Breakfast, Snack, Pre, Post, Snack, Dinner, Late Snack]` (preIdx=2, postIdx=3) | `[Breakfast, Snack, Lunch, Snack, Pre, Post, Late Snack]` (preIdx=4, postIdx=5) |
 
-Implementation note: pre/post slot labels in the UI override the default meal name (e.g., "Lunch" becomes "Pre-Workout (Lunch)" on training days).
+**Rest day** uses the same N-keyed name template, peri-workout slots are absent:
+
+| N | Slot labels |
+|---|---|
+| 3 | Breakfast, Lunch, Dinner |
+| 4 | Breakfast, Lunch, Snack, Dinner |
+| 5 | Breakfast, Snack, Lunch, Snack, Dinner |
+| 6 | Breakfast, Snack, Lunch, Snack, Dinner, Late Snack |
+| 7 | Breakfast, Snack, Lunch, Snack, Dinner, Late Snack, Bedtime Snack |
+
+Implementation: peri slots in the rendered UI show **"Pre-Workout"** / **"Post-Workout"** as the primary label with the chronological name (e.g., "Lunch") as a sub-label or tooltip.
 
 ---
 
