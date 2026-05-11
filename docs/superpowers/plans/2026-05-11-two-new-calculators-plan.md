@@ -588,7 +588,9 @@ describe('predictEndGlucose — basic aerobic scenarios', () => {
       durationMin: 60,
       iobUnits: 1.0,
     })
-    expect(result.endMmol).toBeLessThan(result.deltaMmol + baseInput.startMmol)
+    // Combined effect (base aerobic drop + IOB amplification) should produce
+    // an end-glucose well below the starting glucose.
+    expect(result.endMmol).toBeLessThan(baseInput.startMmol)
     expect(result.deltaMmol).toBeLessThan(-3.0)
   })
 })
