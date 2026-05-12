@@ -289,7 +289,7 @@ function MealTimeline({ plan, dayType }) {
               <h3 className="text-xl font-black text-white uppercase tracking-wide">{meal.name}</h3>
               <p className="text-xs text-white/40 mt-1">Carbs type: <span className="text-white/60 capitalize">{meal.carbsType}</span></p>
               {meal.warnOverFifty && (
-                <p className="text-xs text-amber-300/80 mt-1.5 italic">⏱ Extended digestion — pre-bolus earlier</p>
+                <p className="text-xs text-amber-300/80 mt-1.5 italic">⏱ Extended digestion for meals exceeding 50g carbs. Manage insulin timing accordingly.</p>
               )}
             </div>
 
