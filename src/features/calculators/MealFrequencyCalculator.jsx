@@ -264,7 +264,7 @@ function MealTimeline({ plan, dayType }) {
         <div className="bg-amber-500/10 border-l-4 border-amber-400/60 rounded-r-lg p-5 md:p-6">
           <p className="text-amber-300 uppercase tracking-wider text-xs font-bold mb-2">💡 On meals over 50g of carbs</p>
           <p className="text-white/70 text-sm leading-relaxed">
-            Your insulin-to-carb ratio stays the same — <strong className="text-white">same insulin per gram of carbohydrate, regardless of meal size</strong>. What changes is the <strong className="text-white">timing</strong>: larger meals digest and absorb over a longer window. Consider pre-bolusing 15–20 minutes earlier, splitting the dose into two injections, or using an extended/dual-wave bolus on a pump to match the slower glucose curve.
+            Your insulin-to-carb ratio stays the same — <strong className="text-white">same insulin per gram of carbohydrate, regardless of meal size</strong>. What changes is the <strong className="text-white">timing</strong>: larger meals digest and absorb over a longer window, so insulin delivery needs to be more gradual to match the slower glucose rise. Consider <strong className="text-white">splitting the dose</strong> (some at meal time, some 20–30 minutes later), <strong className="text-white">delaying the bolus</strong> to take it partway through the meal, or using an <strong className="text-white">extended/dual-wave bolus</strong> on a pump to spread insulin delivery across the digestion window.
           </p>
         </div>
       )}
