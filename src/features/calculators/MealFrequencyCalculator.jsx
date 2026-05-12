@@ -250,12 +250,24 @@ export default function MealFrequencyCalculator() {
 }
 
 function MealTimeline({ plan, dayType }) {
+  const hasLargeMeals = plan.meals.some((m) => m.warnOverFifty)
+
   return (
     <div className="space-y-3">
       <div className="bg-da-card rounded-2xl p-6">
         <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-1">{dayType === 'training' ? 'Training Day' : 'Rest Day'} Meal Plan</p>
         <p className="text-white/40 text-sm">Daily totals stay constant across day types — only the structure shifts.</p>
       </div>
+
+      {/* Educational note — appears only when at least one meal exceeds 50g carbs */}
+      {hasLargeMeals && (
+        <div className="bg-amber-500/10 border-l-4 border-amber-400/60 rounded-r-lg p-5 md:p-6">
+          <p className="text-amber-300 uppercase tracking-wider text-xs font-bold mb-2">💡 On meals over 50g of carbs</p>
+          <p className="text-white/70 text-sm leading-relaxed">
+            Your insulin-to-carb ratio stays the same — <strong className="text-white">same insulin per gram of carbohydrate, regardless of meal size</strong>. What changes is the <strong className="text-white">timing</strong>: larger meals digest and absorb over a longer window. Consider pre-bolusing 15–20 minutes earlier, splitting the dose into two injections, or using an extended/dual-wave bolus on a pump to match the slower glucose curve.
+          </p>
+        </div>
+      )}
 
       {plan.meals.map((meal) => {
         const isPre  = meal.name === 'Pre-Workout'
@@ -268,20 +280,16 @@ function MealTimeline({ plan, dayType }) {
             className="bg-da-card rounded-2xl p-5 md:p-6"
             style={accentColor ? { borderLeft: `4px solid ${accentColor}` } : {}}
           >
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                {meal.role === 'peri' && (
-                  <p className="uppercase tracking-wider text-xs font-bold mb-1" style={{ color: accentColor }}>
-                    {accentIcon} Peri-Workout
-                  </p>
-                )}
-                <h3 className="text-xl font-black text-white uppercase tracking-wide">{meal.name}</h3>
-                <p className="text-xs text-white/40 mt-1">Carbs type: <span className="text-white/60 capitalize">{meal.carbsType}</span></p>
-              </div>
+            <div className="mb-3">
+              {meal.role === 'peri' && (
+                <p className="uppercase tracking-wider text-xs font-bold mb-1" style={{ color: accentColor }}>
+                  {accentIcon} Peri-Workout
+                </p>
+              )}
+              <h3 className="text-xl font-black text-white uppercase tracking-wide">{meal.name}</h3>
+              <p className="text-xs text-white/40 mt-1">Carbs type: <span className="text-white/60 capitalize">{meal.carbsType}</span></p>
               {meal.warnOverFifty && (
-                <span className="text-xs bg-red-500/20 border border-red-500/40 text-red-300 px-2 py-1 rounded-full uppercase tracking-wider font-bold">
-                  ⚠️ &gt;50g carbs
-                </span>
+                <p className="text-xs text-amber-300/80 mt-1.5 italic">⏱ Extended digestion — pre-bolus earlier</p>
               )}
             </div>
 
