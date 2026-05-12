@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Button from '../../components/Button'
 import { buildDayPlan } from './meal-frequency/planner'
 import { defaultMealCount, suggestMealCount } from './meal-frequency/mealCount'
@@ -15,7 +15,7 @@ export default function MealFrequencyCalculator() {
   const [protein,  setProtein]  = useState('')
   const [fat,      setFat]      = useState('')
   const [carbs,    setCarbs]    = useState('')
-  const [fiber,    setFiber]    = useState('25')
+  const [fiber,    setFiber]    = useState('30')
 
   const [dayType,      setDayType]      = useState('rest')
   const [trainingTime, setTrainingTime] = useState('afternoon')
@@ -24,6 +24,27 @@ export default function MealFrequencyCalculator() {
 
   const [mealCount,    setMealCount]    = useState(defaultMealCount('rest'))
   const [userOverrodeN, setUserOverrodeN] = useState(false)
+  const [importBannerVisible, setImportBannerVisible] = useState(false)
+
+  // On mount, if the URL contains macro query params (from TDEE calc hand-off),
+  // pre-fill the input fields and show the import banner.
+  const [searchParams] = useSearchParams()
+  useEffect(() => {
+    const cals  = parseFloat(searchParams.get('calories'))
+    const prot  = parseFloat(searchParams.get('protein'))
+    const ft    = parseFloat(searchParams.get('fat'))
+    const carb  = parseFloat(searchParams.get('carbs'))
+    const fib   = parseFloat(searchParams.get('fiber'))
+    if ([cals, prot, ft, carb, fib].every((v) => Number.isFinite(v) && v > 0)) {
+      setCalories(String(cals))
+      setProtein(String(prot))
+      setFat(String(ft))
+      setCarbs(String(carb))
+      setFiber(String(fib))
+      setImportBannerVisible(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])  // Read once on mount
 
   const carbsNum = parseFloat(carbs) || 0
 
@@ -65,9 +86,10 @@ export default function MealFrequencyCalculator() {
   }
 
   const reset = () => {
-    setCalories(''); setProtein(''); setFat(''); setCarbs(''); setFiber('25')
+    setCalories(''); setProtein(''); setFat(''); setCarbs(''); setFiber('30')
     setDayType('rest'); setCarbWeight(0.65); setFatWeight(0.15)
     setUserOverrodeN(false); setMealCount(defaultMealCount('rest'))
+    setImportBannerVisible(false)
   }
 
   return (
@@ -92,6 +114,18 @@ export default function MealFrequencyCalculator() {
       <section className="da-container section-padding">
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="bg-da-card rounded-2xl p-6 md:p-8 space-y-6">
+
+            {importBannerVisible && (
+              <div className="bg-da-cyan/10 border border-da-cyan/40 rounded-lg p-3 flex items-start justify-between gap-3">
+                <p className="text-sm text-white/80">
+                  ✨ Imported from your TDEE calculator results.
+                </p>
+                <button type="button" onClick={() => setImportBannerVisible(false)}
+                  className="text-white/60 hover:text-white text-sm" aria-label="Dismiss">
+                  ×
+                </button>
+              </div>
+            )}
 
             {/* Daily totals */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
