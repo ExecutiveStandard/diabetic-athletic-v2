@@ -1,6 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
+import {
+  computeMacros,
+  MACRO_DEFAULTS,
+  FIBER_DEFAULT_G,
+  SLIDER_RANGES,
+} from './calorie-tdee/macros'
 
 // Activity multipliers — matches the original Diabetic Athletic CCalc.io widget exactly.
 // These are slightly lower than the textbook Mifflin-St Jeor multipliers (1.375, 1.55, 1.725)
@@ -44,6 +50,11 @@ export default function CalorieCalculator() {
   const [activity, setActivity] = useState(null)
   const [goal, setGoal] = useState(null)
 
+  // Macro state — initialized to null; set by useEffect when goal is picked.
+  const [proteinPerKg, setProteinPerKg] = useState(null)
+  const [fatPercent,   setFatPercent]   = useState(null)
+  const [fiberGrams,   setFiberGrams]   = useState(FIBER_DEFAULT_G)
+
   // Convert inputs to metric for calculation
   const metric = useMemo(() => {
     const ageNum = parseFloat(age)
@@ -76,10 +87,46 @@ export default function CalorieCalculator() {
     return tdee + goal.offset
   }, [tdee, goal])
 
+  // When goal changes, reset protein/fat sliders to goal-specific defaults.
+  // Fiber is not reset — user's slider position persists across goal changes.
+  useEffect(() => {
+    if (!goal) return
+    const defaults = MACRO_DEFAULTS[goal.id]
+    if (!defaults) return
+    setProteinPerKg(defaults.proteinPerKg)
+    setFatPercent(defaults.fatPercent)
+  }, [goal])
+
+  // Derived macros — recompute whenever any input changes.
+  const macros = useMemo(() => {
+    if (!goalCalories || !metric.weightKg || proteinPerKg == null) return null
+    return computeMacros({
+      goalCalories,
+      bodyweightKg: metric.weightKg,
+      proteinPerKg,
+      fatPercent,
+      fiberGrams,
+    })
+  }, [goalCalories, metric.weightKg, proteinPerKg, fatPercent, fiberGrams])
+
+  // URL query string for cross-tool hand-off to the Meal Frequency Planner.
+  const macroQueryString = useMemo(() => {
+    if (!macros || !goalCalories) return ''
+    const params = new URLSearchParams({
+      calories: Math.round(goalCalories).toString(),
+      protein:  Math.round(macros.protein).toString(),
+      fat:      Math.round(macros.fat).toString(),
+      carbs:    Math.round(macros.carbs).toString(),
+      fiber:    Math.round(macros.fiber).toString(),
+    })
+    return `?${params.toString()}`
+  }, [macros, goalCalories])
+
   const reset = () => {
     setFirstName(''); setEmail(''); setAge(''); setWeight('')
     setHeightCm(''); setHeightFt(''); setHeightIn('')
     setActivity(null); setGoal(null)
+    setProteinPerKg(null); setFatPercent(null); setFiberGrams(FIBER_DEFAULT_G)
   }
 
   return (
@@ -337,6 +384,117 @@ export default function CalorieCalculator() {
               </p>
             </div>
           </section>
+
+          {/* ============== STEP 7: Macro Breakdown ============== */}
+          {macros && (
+            <section>
+              <h2 className="text-da-cyan uppercase tracking-widest text-sm font-bold mb-2">
+                Your Daily Macro Targets
+              </h2>
+              <p className="text-white/50 text-sm mb-6">
+                Calibrated from Phil Graham's <em>Diabetic Muscle and Fitness Guide</em>. Adjust the sliders to fine-tune.
+              </p>
+
+              {/* Protein slider */}
+              <div className="mb-5">
+                <label className="block text-white/80 text-sm font-bold mb-2">
+                  Protein — {proteinPerKg.toFixed(1)} g/kg = <span className="text-da-cyan">{Math.round(macros.protein)}g/day</span>
+                </label>
+                <input
+                  type="range"
+                  min={SLIDER_RANGES.protein.min}
+                  max={SLIDER_RANGES.protein.max}
+                  step={SLIDER_RANGES.protein.step}
+                  value={proteinPerKg}
+                  onChange={(e) => setProteinPerKg(parseFloat(e.target.value))}
+                  className="w-full accent-da-cyan"
+                />
+                <div className="flex justify-between text-xs text-white/40 mt-1">
+                  <span>{SLIDER_RANGES.protein.min}</span>
+                  <span>{SLIDER_RANGES.protein.max} g/kg</span>
+                </div>
+              </div>
+
+              {/* Fat slider */}
+              <div className="mb-5">
+                <label className="block text-white/80 text-sm font-bold mb-2">
+                  Fat — {Math.round(fatPercent * 100)}% of calories = <span className="text-da-cyan">{Math.round(macros.fat)}g/day</span>
+                </label>
+                <input
+                  type="range"
+                  min={SLIDER_RANGES.fat.min}
+                  max={SLIDER_RANGES.fat.max}
+                  step={SLIDER_RANGES.fat.step}
+                  value={fatPercent}
+                  onChange={(e) => setFatPercent(parseFloat(e.target.value))}
+                  className="w-full accent-da-cyan"
+                />
+                <div className="flex justify-between text-xs text-white/40 mt-1">
+                  <span>{Math.round(SLIDER_RANGES.fat.min * 100)}%</span>
+                  <span>{Math.round(SLIDER_RANGES.fat.max * 100)}%</span>
+                </div>
+              </div>
+
+              {/* Fiber slider */}
+              <div className="mb-6">
+                <label className="block text-white/80 text-sm font-bold mb-2">
+                  Fiber — <span className="text-da-cyan">{fiberGrams}g/day</span>
+                </label>
+                <input
+                  type="range"
+                  min={SLIDER_RANGES.fiber.min}
+                  max={SLIDER_RANGES.fiber.max}
+                  step={SLIDER_RANGES.fiber.step}
+                  value={fiberGrams}
+                  onChange={(e) => setFiberGrams(parseInt(e.target.value))}
+                  className="w-full accent-da-cyan"
+                />
+                <div className="flex justify-between text-xs text-white/40 mt-1">
+                  <span>{SLIDER_RANGES.fiber.min}g</span>
+                  <span>{SLIDER_RANGES.fiber.max}g</span>
+                </div>
+                <p className="text-xs text-white/40 mt-2 italic">
+                  Phil Graham / SCAN 2015 recommends a minimum 30g/day for general health. Slider goes up to 40g for aggressive-deficit cases where volume feeding via non-starchy vegetables increases fiber intake.
+                </p>
+              </div>
+
+              {/* Result tiles or guard-rail warning */}
+              {macros.carbsClampedToZero ? (
+                <div className="bg-red-500/15 border border-red-500/40 rounded-lg p-4 text-red-200 text-sm">
+                  ⚠️ Your protein and fat alone exceed your goal calories. Lower one to make room for carbs, or recheck your TDEE inputs.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  {[
+                    { label: 'Protein', grams: macros.protein, cal: macros.proteinCal, pct: macros.proteinPercent, color: 'da-cyan' },
+                    { label: 'Carbs',   grams: macros.carbs,   cal: macros.carbsCal,   pct: macros.carbsPercent,   color: 'white' },
+                    { label: 'Fat',     grams: macros.fat,     cal: macros.fatCal,     pct: macros.fatPercent,     color: 'da-gold' },
+                    { label: 'Fiber',   grams: macros.fiber,   cal: null,              pct: null,                  color: 'white' },
+                  ].map(({ label, grams, cal, pct, color }) => (
+                    <div key={label} className="bg-da-darker/60 rounded-lg p-4 text-center">
+                      <p className={`text-[10px] uppercase tracking-wider text-${color === 'white' ? 'white/60' : color} mb-1 font-bold`}>{label}</p>
+                      <p className="text-2xl font-black text-white">{Math.round(grams)}<span className="text-xs text-white/40 ml-1">g</span></p>
+                      {cal != null && (
+                        <p className="text-xs text-white/40 mt-1">{Math.round(cal)} kcal</p>
+                      )}
+                      {pct != null && (
+                        <p className="text-xs text-white/40">{Math.round(pct)}%</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Cross-tool CTA */}
+              {!macros.carbsClampedToZero && (
+                <Link to={`/calculators/meal-frequency${macroQueryString}`}>
+                  <Button type="button" variant="gradient" size="lg" className="w-full">
+                    🍽 Use these macros in the Meal Frequency Planner →
+                  </Button>
+                </Link>
+              )}
+            </section>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-white/10">
             <Button type="button" variant="gradient" size="lg" className="flex-1">
