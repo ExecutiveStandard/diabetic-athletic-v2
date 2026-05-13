@@ -128,13 +128,6 @@ export default function InsulinCalculator() {
   const [weight, setWeight]           = useState('')
   const [weightUnits, setWeightUnits] = useState('kg')
 
-  // Custom override toggle
-  const [useCustomRatios, setUseCustomRatios] = useState(false)
-  const [customISF, setCustomISF]             = useState('')
-  const [customMorningICR, setCustomMorningICR]     = useState('')
-  const [customAfternoonICR, setCustomAfternoonICR] = useState('')
-  const [customEveningICR, setCustomEveningICR]     = useState('')
-
   // Step 2 — meal
   const [carbGrams, setCarbGrams]   = useState('')
   const [timeOfDay, setTimeOfDay]   = useState('morning')
@@ -162,19 +155,14 @@ export default function InsulinCalculator() {
     evening:   calcICR({ tdd, time: 'evening' }),
   }), [tdd])
 
-  // ISF actually used (system or user override)
-  const activeISF = useCustomRatios
-    ? parseFloat(customISF) || 0
-    : systemISF
+  // ISF actually used in meal-dose math
+  const activeISF = systemISF
 
   // ICR for selected time of day
-  const activeICR = useMemo(() => {
-    if (useCustomRatios) {
-      const map = { morning: customMorningICR, afternoon: customAfternoonICR, evening: customEveningICR }
-      return parseFloat(map[timeOfDay]) || 0
-    }
-    return systemICRs[timeOfDay]
-  }, [useCustomRatios, timeOfDay, customMorningICR, customAfternoonICR, customEveningICR, systemICRs])
+  const activeICR = useMemo(
+    () => systemICRs[timeOfDay],
+    [timeOfDay, systemICRs]
+  )
 
   // Step 2 — carb coverage
   const carbDose = useMemo(
@@ -200,8 +188,6 @@ export default function InsulinCalculator() {
 
   const reset = () => {
     setInsulinType('rapid'); setBgUnit('mg/dL'); setWeight(''); setWeightUnits('kg')
-    setUseCustomRatios(false); setCustomISF(''); setCustomMorningICR('')
-    setCustomAfternoonICR(''); setCustomEveningICR('')
     setCarbGrams(''); setTimeOfDay('morning'); setCurrentBG('')
   }
 
@@ -357,117 +343,41 @@ export default function InsulinCalculator() {
               />
             </div>
 
-            {/* Custom toggle */}
-            <label className="flex items-start gap-3 p-4 bg-gradient-to-r from-purple-600/20 to-da-cyan/20 border border-purple-500/30 rounded-md cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useCustomRatios}
-                onChange={(e) => setUseCustomRatios(e.target.checked)}
-                className="mt-0.5 accent-da-cyan w-5 h-5"
-              />
-              <div>
-                <div className="text-white font-bold text-sm">
-                  Use my own ISF and I:C ratios instead
+            {/* Show system-calculated ratios */}
+            <ResultBox
+              label="Insulin Sensitivity Factor (ISF)"
+              value={fmt(systemISF)}
+              suffix={bgUnit}
+              subtitle="One unit of insulin lowers BG by this amount"
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
+                <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
+                  Morning ICR
                 </div>
-                <div className="text-white/50 text-xs mt-1">
-                  Already know your numbers from your endocrinologist? Override below.
-                </div>
+                <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.morning)}</div>
+                <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
               </div>
-            </label>
-
-            {!useCustomRatios ? (
-              <>
-                {/* System-calculated ratios */}
-                <ResultBox
-                  label="Insulin Sensitivity Factor (ISF)"
-                  value={fmt(systemISF)}
-                  suffix={bgUnit}
-                  subtitle="One unit of insulin lowers BG by this amount"
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
-                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
-                      Morning ICR
-                    </div>
-                    <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.morning)}</div>
-                    <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
-                  </div>
-                  <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
-                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
-                      Afternoon ICR
-                    </div>
-                    <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.afternoon)}</div>
-                    <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
-                  </div>
-                  <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
-                    <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
-                      Evening ICR
-                    </div>
-                    <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.evening)}</div>
-                    <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
-                  </div>
+              <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
+                <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
+                  Afternoon ICR
                 </div>
-
-                <InfoBox>
-                  These are starting-point estimates. If your body is more insulin-resistant, you may need a higher dose. If you're more sensitive, you may need less. Always log your numbers and adjust with your healthcare team.
-                </InfoBox>
-              </>
-            ) : (
-              <>
-                {/* Custom inputs */}
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                      Your Personal ISF ({bgUnit} per unit)
-                    </label>
-                    <input
-                      type="number" step="0.1" min="0"
-                      value={customISF}
-                      onChange={(e) => setCustomISF(e.target.value)}
-                      placeholder={bgUnit === 'mg/dL' ? 'e.g. 50' : 'e.g. 2.8'}
-                      className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                      Morning ICR (grams carb per 1 unit)
-                    </label>
-                    <input
-                      type="number" step="0.1" min="0"
-                      value={customMorningICR}
-                      onChange={(e) => setCustomMorningICR(e.target.value)}
-                      placeholder="e.g. 8"
-                      className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                      Afternoon ICR
-                    </label>
-                    <input
-                      type="number" step="0.1" min="0"
-                      value={customAfternoonICR}
-                      onChange={(e) => setCustomAfternoonICR(e.target.value)}
-                      placeholder="e.g. 12"
-                      className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                      Evening ICR
-                    </label>
-                    <input
-                      type="number" step="0.1" min="0"
-                      value={customEveningICR}
-                      onChange={(e) => setCustomEveningICR(e.target.value)}
-                      placeholder="e.g. 10"
-                      className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-                    />
-                  </div>
+                <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.afternoon)}</div>
+                <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
+              </div>
+              <div className="bg-da-darker rounded-lg p-4 text-center border border-white/15">
+                <div className="text-da-cyan text-xs uppercase tracking-wider font-bold mb-1">
+                  Evening ICR
                 </div>
-              </>
-            )}
+                <div className="text-2xl font-black text-white">{fmtIcr(systemICRs.evening)}</div>
+                <div className="text-white/40 text-[10px] mt-1">grams carb / 1 unit</div>
+              </div>
+            </div>
+
+            <InfoBox>
+              These are starting-point estimates. If your body is more insulin-resistant, you may need a higher dose. If you're more sensitive, you may need less. Always log your numbers and adjust with your healthcare team.
+            </InfoBox>
           </StepCard>
 
           {/* ============== STEP 2: Carb Coverage ============== */}
@@ -566,7 +476,7 @@ export default function InsulinCalculator() {
                 {activeISF > 0 ? activeISF.toFixed(2) : '—'} {bgUnit} / unit
               </div>
               <p className="text-white/40 text-xs mt-2">
-                {useCustomRatios ? 'From your custom ISF above.' : 'Auto-calculated from your TDD and insulin type.'}
+                Auto-calculated from your TDD and insulin type.
               </p>
             </div>
 
