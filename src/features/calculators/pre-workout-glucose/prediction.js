@@ -1,6 +1,46 @@
 // All coefficients are v1 starting values drawn from Riddell 2017 / EXTOD / ADA.
 // They are expected to be refined based on real-world feedback.
 
+// ───────────── PERSONALIZATION MULTIPLIERS ─────────────
+// Coefficients are starting values drawn from Riddell 2017 /
+// Yardley 2018 / EXTOD / Goldfarb cycle-phase literature. Conservative
+// midpoints within published ranges; subject to feedback-based refinement.
+
+export const SEX_IOB_MULTIPLIER = {
+  male:   1.00,  // baseline
+  female: 1.10,  // ~10% more insulin sensitive at baseline
+}
+
+export const CYCLE_IOB_MULTIPLIER = {
+  follicular: 1.15,  // most insulin sensitive (low estrogen + progesterone)
+  midCycle:   1.10,  // near-ovulation, intermediate
+  luteal:     1.00,  // least sensitive (high progesterone)
+  unknown:    1.10,  // safe midpoint default
+}
+
+export const TRAINING_BASE_MULTIPLIER = {
+  untrained:     1.15,
+  recreational:  1.00,  // baseline
+  trained:       0.85,
+  highlyTrained: 0.75,
+}
+
+export const FASTED_BASE_MULTIPLIER = {
+  fasted: 1.10,  // larger glucose drop (lower glycogen, less substrate)
+  fed:    1.00,  // baseline
+}
+
+export const FASTED_IOB_MULTIPLIER = {
+  fasted: 0.90,  // catecholamines partially offset IOB
+  fed:    1.00,  // baseline
+}
+
+export const INSULIN_ADJ_IOB_MULTIPLIER = {
+  none:        1.00,  // baseline
+  modest:      0.85,  // 25-50% reduction
+  significant: 0.70,  // 50-80% reduction
+}
+
 const BASE_RATE_PER_MIN = {
   aerobic:   { easy: -0.025, moderate: -0.060, hard: -0.080, veryHard: -0.090 },
   anaerobic: { easy:  0.000, moderate:  0.015, hard:  0.040, veryHard:  0.060 },
@@ -51,25 +91,40 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
 }
 
-export function predictEndGlucose(input) {
-  const {
-    startMmol,
-    trendArrow,
-    workoutType,
-    intensity,
-    durationMin,
-    iobUnits,
-    recentCarbs,
-    bodyweightKg,
-    timeOfDay,
-  } = input
-
+export function predictEndGlucose({
+  startMmol,
+  trendArrow,
+  workoutType,
+  intensity,
+  durationMin,
+  iobUnits,
+  recentCarbs,
+  bodyweightKg,
+  timeOfDay,
+  // NEW personalization inputs — all optional. If omitted, multipliers default
+  // to 1.00 and the function output matches its pre-personalization behavior.
+  sex,
+  cyclePhase,
+  trainingStatus,
+  fastedFed,
+  insulinAdjustment,
+}) {
   const intensityKey = intensityBand(intensity)
   const breakdown = []
 
+  // Resolve personalization multipliers. Each defaults to 1.00 if its input
+  // is omitted, so this preserves backward compatibility for callers that
+  // don't supply the new inputs.
+  const sexMult        = SEX_IOB_MULTIPLIER[sex] ?? 1.00
+  const cycleMult      = sex === 'female' ? (CYCLE_IOB_MULTIPLIER[cyclePhase] ?? 1.10) : 1.00
+  const trainingMult   = TRAINING_BASE_MULTIPLIER[trainingStatus] ?? 1.00
+  const fastedBaseMult = FASTED_BASE_MULTIPLIER[fastedFed] ?? 1.00
+  const fastedIobMult  = FASTED_IOB_MULTIPLIER[fastedFed] ?? 1.00
+  const insulinAdjMult = INSULIN_ADJ_IOB_MULTIPLIER[insulinAdjustment] ?? 1.00
+
   // 1. Base rate from workout type × intensity over duration
   const basePerMin = BASE_RATE_PER_MIN[workoutType][intensityKey]
-  const baseDelta = basePerMin * durationMin
+  const baseDelta = basePerMin * durationMin * trainingMult * fastedBaseMult
   breakdown.push({
     label: `${durationMin}min ${workoutType} at ${intensityKey} intensity`,
     delta: baseDelta,
@@ -80,6 +135,7 @@ export function predictEndGlucose(input) {
   const iobAmp = IOB_AMPLIFIER[workoutType]
   const iScaler = INTENSITY_SCALER[intensityKey]
   const iobDelta = -iobUnits * 1.8 * (durationMin / 60) * iobAmp * iScaler
+                   * sexMult * cycleMult * fastedIobMult * insulinAdjMult
   if (iobUnits > 0) {
     breakdown.push({
       label: `${iobUnits}u IOB during ${workoutType}`,
