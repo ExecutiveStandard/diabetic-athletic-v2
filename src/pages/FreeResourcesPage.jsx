@@ -32,9 +32,9 @@ const calculators = [
   },
   {
     slug: 'pre-workout-glucose',
-    name: 'Pre-Workout Glucose Predictor',
-    tagline: 'Predict end-glucose before you train',
-    description: 'Plug in your starting glucose, CGM trend, IOB, and the workout you\'re about to do. Get a literature-grounded prediction of where your glucose will land and whether you need to fuel up first. Built on Riddell consensus + EXTOD guidelines.',
+    name: 'Workout Fueling Calculator',
+    tagline: 'Fuel your training, stay in range',
+    description: 'Calculate exactly how much glucose you need to fuel your workout and stay in range. Plug in your glucose, your active insulin, and what training you\'re about to do — get back a clear fueling plan so you can train hard without crashing.',
     badge: 'NEW',
   },
   {
