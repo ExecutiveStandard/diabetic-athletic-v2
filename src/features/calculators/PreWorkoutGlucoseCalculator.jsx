@@ -28,6 +28,27 @@ const TIME_OF_DAY = [
   { id: 'evening', label: 'Evening' },
 ]
 
+// Heart Rate zones using Karvonen (% HRR). Used when workoutType === 'aerobic'
+// — replaces the RPE slider. Each zone maps to one of the 4 intensity bands
+// the existing prediction math uses (no math changes required).
+const HR_ZONES = [
+  { id: 'Z1', label: 'Recovery',        rangeHrr: '68-73%',  band: 'easy'     },
+  { id: 'Z2', label: 'Steady',          rangeHrr: '73-80%',  band: 'moderate' },
+  { id: 'Z3', label: 'Moderate Effort', rangeHrr: '80-87%',  band: 'moderate' },
+  { id: 'Z4', label: 'Threshold',       rangeHrr: '87-93%',  band: 'hard'     },
+  { id: 'Z5', label: 'Very Hard',       rangeHrr: '93-100%', band: 'veryHard' },
+]
+
+// Maps an intensity band back to an RPE midpoint that the existing
+// intensityBand() function in prediction.js will classify into that same band.
+// (intensityBand uses thresholds: ≤3 easy, ≤6 moderate, ≤8 hard, else veryHard.)
+const INTENSITY_RPE_FROM_BAND = {
+  easy:     2,  // ≤3 → 'easy'
+  moderate: 5,  // ≤6 → 'moderate'
+  hard:     7,  // ≤8 → 'hard'
+  veryHard: 9,  // else → 'veryHard'
+}
+
 export default function PreWorkoutGlucoseCalculator() {
   // Glucose
   const [glucoseUnit, setGlucoseUnit] = useState('mmol')
@@ -39,6 +60,7 @@ export default function PreWorkoutGlucoseCalculator() {
   // Workout
   const [workoutType, setWorkoutType] = useState('aerobic')
   const [intensity, setIntensity] = useState(5)
+  const [hrZone, setHrZone] = useState('Z3')  // Default: Zone 3 (Moderate Effort)
   const [duration, setDuration] = useState('')
 
   // IOB
@@ -83,13 +105,20 @@ export default function PreWorkoutGlucoseCalculator() {
     const wt = parseFloat(weight)
     const iob = parseFloat(effectiveIob) || 0
     if (!sg || !dur || !wt) return null
+
+    // For aerobic workouts, derive intensity from the selected HR Zone.
+    // For all other workout types, use the RPE slider value directly.
+    const effectiveIntensity = workoutType === 'aerobic'
+      ? INTENSITY_RPE_FROM_BAND[HR_ZONES.find((z) => z.id === hrZone).band]
+      : intensity
+
     const startMmol = glucoseUnit === 'mmol' ? sg : mgdlToMmol(sg)
     const bodyweightKg = weightUnit === 'kg' ? wt : wt * 0.453592
     return predictEndGlucose({
       startMmol,
       trendArrow,
       workoutType,
-      intensity,
+      intensity: effectiveIntensity,
       durationMin: dur,
       iobUnits: iob,
       recentCarbs: hasRecentCarbs
@@ -98,11 +127,11 @@ export default function PreWorkoutGlucoseCalculator() {
       bodyweightKg,
       timeOfDay,
     })
-  }, [startGlucose, glucoseUnit, trendArrow, workoutType, intensity, duration, effectiveIob, hasRecentCarbs, recentGrams, recentMinutesAgo, weight, weightUnit, timeOfDay])
+  }, [startGlucose, glucoseUnit, trendArrow, workoutType, intensity, hrZone, duration, effectiveIob, hasRecentCarbs, recentGrams, recentMinutesAgo, weight, weightUnit, timeOfDay])
 
   const reset = () => {
     setStartGlucose(''); setTrendArrow('flat'); setWorkoutType('aerobic')
-    setIntensity(5); setDuration(''); setIobUnits('')
+    setIntensity(5); setHrZone('Z3'); setDuration(''); setIobUnits('')
     setIobHelperOpen(false); setLastBolus(''); setMinutesSinceBolus('')
     setHasRecentCarbs(false); setRecentGrams(''); setRecentMinutesAgo('')
     setWeight('')
@@ -118,12 +147,12 @@ export default function PreWorkoutGlucoseCalculator() {
           <Link to="/free-resources" className="text-da-cyan uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-4 inline-block">
             ← Back to Free Resources
           </Link>
-          <p className="text-da-gold uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-4">⚡ Pre-Workout Calculator</p>
+          <p className="text-da-gold uppercase tracking-[0.2em] text-xs md:text-sm font-bold mb-4">⚡ Workout Fueling Calculator</p>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black uppercase leading-[1.05] tracking-tight text-white mb-6">
-            Pre-Workout <span className="text-da-cyan">Glucose</span> Predictor
+            Workout <span className="text-da-cyan">Fueling</span> Calculator
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto leading-relaxed">
-            Predict your end-glucose and risk-of-low before you train. Inputs in 60 seconds, literature-grounded prediction.
+            Know how much glucose you need to fuel your workout and avoid intra-workout lows. Plug in your numbers, get a literature-grounded fueling plan plus your predicted end-glucose.
           </p>
         </div>
       </section>
@@ -179,15 +208,38 @@ export default function PreWorkoutGlucoseCalculator() {
               </div>
             </div>
 
-            {/* Intensity */}
-            <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Intensity (RPE 1–10) — {intensity}</label>
-              <input type="range" min="1" max="10" value={intensity} onChange={(e) => setIntensity(parseInt(e.target.value))}
-                className="w-full accent-da-cyan" />
-              <div className="flex justify-between text-xs text-white/40 mt-1">
-                <span>Easy</span><span>Moderate</span><span>Hard</span><span>Very Hard</span>
+            {/* Intensity — HR Zone selector for aerobic, RPE slider for everything else */}
+            {workoutType === 'aerobic' ? (
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">
+                  Training Zone — {HR_ZONES.find((z) => z.id === hrZone).label} ({HR_ZONES.find((z) => z.id === hrZone).rangeHrr} HRR)
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {HR_ZONES.map((z) => (
+                    <button key={z.id} type="button" onClick={() => setHrZone(z.id)}
+                      className={`p-2 rounded-lg text-center ${hrZone === z.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                      <div className={`font-bold text-sm ${hrZone === z.id ? 'text-da-cyan' : 'text-white'}`}>{z.id}</div>
+                      <div className="text-[10px] text-white/40 mt-0.5">{z.label}</div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-white/40 italic mt-2">
+                  Don't know your zones?{' '}
+                  <a href="/calculators/cardio" target="_blank" rel="noopener noreferrer" className="text-da-cyan underline">
+                    Calculate them here ↗
+                  </a>
+                </p>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Intensity (RPE 1–10) — {intensity}</label>
+                <input type="range" min="1" max="10" value={intensity} onChange={(e) => setIntensity(parseInt(e.target.value))}
+                  className="w-full accent-da-cyan" />
+                <div className="flex justify-between text-xs text-white/40 mt-1">
+                  <span>Easy</span><span>Moderate</span><span>Hard</span><span>Very Hard</span>
+                </div>
+              </div>
+            )}
 
             {/* Duration */}
             <div>
