@@ -28,12 +28,80 @@ const TIME_OF_DAY = [
   { id: 'evening',   label: 'Evening',   factor: 1.0 },
 ]
 
+// ───────────── PERSONALIZATION MULTIPLIERS ─────────────
+// Coefficients drawn from Riddell 2017, Yardley 2018, ADA exercise
+// guidelines, and Brown et al. (menstrual cycle). Conservative midpoints
+// within published ranges; subject to feedback-based refinement.
+
+const TRAINING_TDD_MULT = {
+  untrained:     1.10,  // higher insulin resistance, slightly more daily insulin
+  recreational:  1.00,  // baseline matches weight × 0.55 estimate
+  trained:       0.90,  // ~10% reduction from training adaptations
+  highlyTrained: 0.80,  // ~20% reduction at elite levels
+}
+
+const SEX_TDD_MULT = {
+  male:   1.00,
+  female: 0.95,  // women ~5% more insulin sensitive at baseline (cycle adds further variation)
+}
+
+const CYCLE_TDD_MULT = {
+  follicular: 0.90,  // most sensitive (low estrogen + progesterone)
+  midCycle:   0.95,  // intermediate
+  luteal:     1.05,  // least sensitive (high progesterone) — near male baseline
+  unknown:    0.95,  // safe midpoint default
+}
+
+const TRAINING_STATUSES = [
+  { id: 'untrained',     label: 'Untrained',      detail: 'Little or no regular exercise' },
+  { id: 'recreational',  label: 'Recreational',   detail: '2–3 days/week, casual' },
+  { id: 'trained',       label: 'Trained',        detail: '4–5 days/week, structured plan' },
+  { id: 'highlyTrained', label: 'Highly Trained', detail: '6–7 days/week, competitive' },
+]
+
+const CYCLE_PHASES = [
+  { id: 'follicular', label: 'Follicular Phase', detail: 'Early cycle, post-period' },
+  { id: 'midCycle',   label: 'Mid-cycle',        detail: '~Ovulation' },
+  { id: 'luteal',     label: 'Luteal Phase',     detail: 'Late cycle, pre-period' },
+  { id: 'unknown',    label: "Don't know / N/A", detail: 'Default — works for most' },
+]
+
 // =============================================================================
 // MATH HELPERS
 // =============================================================================
-function calcTDD({ weight, weightUnits }) {
+function calcTDD({
+  weight,
+  weightUnits,
+  // NEW personalization inputs — all optional. When omitted, the function
+  // returns the same weight-based estimate as before (backward compatibility).
+  actualTdd,
+  bodyFatPercent,
+  trainingStatus,
+  sex,
+  cyclePhase,
+}) {
   if (!weight || weight <= 0) return 0
-  return weightUnits === 'kg' ? weight * 0.55 : weight / 4
+
+  // Step 1 — determine base TDD
+  let tdd
+  if (actualTdd && actualTdd > 0) {
+    tdd = actualTdd
+  } else if (bodyFatPercent && bodyFatPercent > 0 && bodyFatPercent < 60) {
+    const lbm = weight * (1 - bodyFatPercent / 100)
+    tdd = weightUnits === 'kg' ? lbm * 0.7 : (lbm / 2.2) * 0.7
+  } else {
+    tdd = weightUnits === 'kg' ? weight * 0.55 : weight / 4
+  }
+
+  // Step 2 — apply training status multiplier
+  tdd *= TRAINING_TDD_MULT[trainingStatus] ?? 1.00
+
+  // Step 3 — apply sex × cycle multiplier
+  const sexMult   = SEX_TDD_MULT[sex] ?? 1.00
+  const cycleMult = sex === 'female' ? (CYCLE_TDD_MULT[cyclePhase] ?? 0.95) : 1.00
+  tdd *= sexMult * cycleMult
+
+  return tdd
 }
 
 function calcISF({ tdd, insulinType, bgUnit }) {
@@ -138,11 +206,31 @@ export default function InsulinCalculator() {
   // Show formula reference table
   const [showFormulaTable, setShowFormulaTable] = useState(false)
 
+  // Mode toggle — Beginner (default) shows existing inputs only;
+  // Advanced reveals the personalization inputs that refine the TDD calc.
+  const [mode, setMode] = useState('beginner')
+
+  // Personalization inputs (only visible when mode === 'advanced')
+  const [actualTdd,         setActualTdd]         = useState('')
+  const [bodyFatPercent,    setBodyFatPercent]    = useState('')
+  const [trainingStatus,    setTrainingStatus]    = useState('recreational')
+  const [sex,               setSex]               = useState('male')
+  const [cyclePhase,        setCyclePhase]        = useState('unknown')
+  const [cycleExpanded,     setCycleExpanded]     = useState(false)
+
   // ===== Computed =====
   const tdd = useMemo(() => {
     const w = parseFloat(weight)
-    return calcTDD({ weight: w, weightUnits })
-  }, [weight, weightUnits])
+    return calcTDD({
+      weight: w,
+      weightUnits,
+      actualTdd:      parseFloat(actualTdd) || 0,
+      bodyFatPercent: parseFloat(bodyFatPercent) || 0,
+      trainingStatus,
+      sex,
+      cyclePhase,
+    })
+  }, [weight, weightUnits, actualTdd, bodyFatPercent, trainingStatus, sex, cyclePhase])
 
   const systemISF = useMemo(
     () => calcISF({ tdd, insulinType, bgUnit }),
@@ -189,6 +277,10 @@ export default function InsulinCalculator() {
   const reset = () => {
     setInsulinType('rapid'); setBgUnit('mg/dL'); setWeight(''); setWeightUnits('kg')
     setCarbGrams(''); setTimeOfDay('morning'); setCurrentBG('')
+    // Personalization defaults
+    setMode('beginner')
+    setActualTdd(''); setBodyFatPercent(''); setTrainingStatus('recreational')
+    setSex('male'); setCyclePhase('unknown'); setCycleExpanded(false)
   }
 
   return (
@@ -216,6 +308,23 @@ export default function InsulinCalculator() {
         </div>
 
         <div className="max-w-3xl mx-auto space-y-4">
+          {/* Mode toggle — Beginner / Advanced */}
+          <div className="mb-6">
+            <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Mode</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ['beginner', 'Beginner', 'Recommended'],
+                ['advanced', 'Advanced', 'I have more data'],
+              ].map(([id, lbl, detail]) => (
+                <button key={id} type="button" onClick={() => setMode(id)}
+                  className={`p-3 rounded-lg text-left ${mode === id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                  <div className={`font-bold ${mode === id ? 'text-da-cyan' : 'text-white'}`}>{lbl}</div>
+                  <div className="text-xs text-white/40">{detail}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* ============== STEP 1: Baseline ============== */}
           <StepCard stepNumber={1} title="Finding Your Baseline (TDD, I:C & ISF)" defaultOpen>
             {/* Insulin type */}
@@ -379,6 +488,104 @@ export default function InsulinCalculator() {
               These are starting-point estimates. If your body is more insulin-resistant, you may need a higher dose. If you're more sensitive, you may need less. Always log your numbers and adjust with your healthcare team.
             </InfoBox>
           </StepCard>
+
+          {/* Advanced Inputs — conditional on mode === 'advanced' */}
+          {mode === 'advanced' && (
+            <StepCard stepNumber="A" title="Advanced Inputs (optional)">
+              <p className="text-white/60 text-sm mb-4">
+                The more we know about you, the more accurate your calculated ratios. All fields below are optional — fill in what you know.
+              </p>
+
+              {/* Actual TDD */}
+              <div className="mb-4">
+                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                  Actual Total Daily Dose (units, optional)
+                </label>
+                <input
+                  type="number" step="0.5" min="0" max="200"
+                  value={actualTdd}
+                  onChange={(e) => setActualTdd(e.target.value)}
+                  placeholder="e.g. 32"
+                  className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+                />
+                <p className="text-white/40 text-xs mt-1 italic">
+                  Your average daily insulin (basal + bolus combined). If you don't know this, leave it blank — we'll estimate from your weight.
+                </p>
+              </div>
+
+              {/* Body Fat % */}
+              <div className="mb-4">
+                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                  Body Fat % (optional)
+                </label>
+                <input
+                  type="number" step="0.5" min="0" max="60"
+                  value={bodyFatPercent}
+                  onChange={(e) => setBodyFatPercent(e.target.value)}
+                  placeholder="e.g. 18"
+                  className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
+                />
+                <p className="text-white/40 text-xs mt-1 italic">
+                  For a more accurate TDD estimate if you know your body fat %. Skip if you provided actual TDD above.
+                </p>
+              </div>
+
+              {/* Training Status */}
+              <div className="mb-4">
+                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                  Training Status
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {TRAINING_STATUSES.map((t) => (
+                    <button key={t.id} type="button" onClick={() => setTrainingStatus(t.id)}
+                      className={`p-3 rounded-lg text-left ${trainingStatus === t.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-darker border border-white/15'}`}>
+                      <div className={`font-bold text-sm ${trainingStatus === t.id ? 'text-da-cyan' : 'text-white'}`}>{t.label}</div>
+                      <div className="text-[10px] text-white/40 mt-0.5">{t.detail}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sex (+ optional Cycle expander) */}
+              <div>
+                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">Sex</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[['male', 'Male'], ['female', 'Female']].map(([id, lbl]) => (
+                    <button key={id} type="button" onClick={() => setSex(id)}
+                      className={`py-3 rounded-lg ${sex === id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-darker border border-white/15 text-white/60'}`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Cycle expander — only when Female */}
+                {sex === 'female' && (
+                  <>
+                    <button type="button" onClick={() => setCycleExpanded(!cycleExpanded)}
+                      className="text-da-cyan text-xs uppercase tracking-wider mt-2 font-bold">
+                      {cycleExpanded ? '− Hide menstrual cycle refinement' : '+ Refine for menstrual cycle phase (optional)'}
+                    </button>
+                    {cycleExpanded && (
+                      <div className="mt-3 p-4 bg-da-darker rounded-lg">
+                        <p className="text-xs text-white/50 mb-3">
+                          Cycle phase affects insulin sensitivity. Adjusts the calculation by ~5–15%. If you're not menstruating, on hormonal contraception, or don't track your cycle, leave this as "Don't know / N/A" — the default works for most users.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {CYCLE_PHASES.map((p) => (
+                            <button key={p.id} type="button" onClick={() => setCyclePhase(p.id)}
+                              className={`p-3 rounded-lg text-left ${cyclePhase === p.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/15'}`}>
+                              <div className={`font-bold text-sm ${cyclePhase === p.id ? 'text-da-cyan' : 'text-white'}`}>{p.label}</div>
+                              <div className="text-[10px] text-white/40 mt-0.5">{p.detail}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </StepCard>
+          )}
 
           {/* ============== STEP 2: Carb Coverage ============== */}
           <StepCard stepNumber={2} title="Carb Coverage">
