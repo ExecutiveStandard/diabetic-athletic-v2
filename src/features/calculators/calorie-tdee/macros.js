@@ -1,5 +1,5 @@
-// Goal-specific macro defaults — drawn from Phil Graham's
-// Diabetic Muscle and Fitness Guide (Chapter 6).
+// Goal-specific macro defaults — tuned for Type 1 diabetic athletes by
+// Diabetic Athletic, drawing on established T1D sport-nutrition guidelines.
 // Goal IDs match CalorieCalculator.jsx's existing GOALS array.
 export const MACRO_DEFAULTS = {
   loss:     { proteinPerKg: 1.8, fatPercent: 0.20 },
@@ -7,7 +7,8 @@ export const MACRO_DEFAULTS = {
   gain:     { proteinPerKg: 1.6, fatPercent: 0.25 },
 }
 
-// Default fiber grams — Phil Graham cites SCAN 2015 minimum of 30g/day.
+// Default fiber grams — SCAN 2015 (UK Scientific Advisory Committee on
+// Nutrition) recommends a minimum of 30g/day for general health.
 export const FIBER_DEFAULT_G = 30
 
 // Slider bounds. fatPercent is stored as a decimal (0.15 = 15%).

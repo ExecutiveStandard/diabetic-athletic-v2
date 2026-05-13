@@ -392,7 +392,7 @@ export default function CalorieCalculator() {
                 Your Daily Macro Targets
               </h2>
               <p className="text-white/50 text-sm mb-6">
-                Calibrated from Phil Graham's <em>Diabetic Muscle and Fitness Guide</em>. Adjust the sliders to fine-tune.
+                Tuned for Type 1 diabetic athletes by Diabetic Athletic. Adjust the sliders to fine-tune.
               </p>
 
               {/* Protein slider */}
@@ -454,7 +454,7 @@ export default function CalorieCalculator() {
                   <span>{SLIDER_RANGES.fiber.max}g</span>
                 </div>
                 <p className="text-xs text-white/40 mt-2 italic">
-                  Phil Graham / SCAN 2015 recommends a minimum 30g/day for general health. Slider goes up to 40g for aggressive-deficit cases where volume feeding via non-starchy vegetables increases fiber intake.
+                  The UK Scientific Advisory Committee on Nutrition (SCAN, 2015) recommends a minimum 30g/day for general health. Slider goes up to 40g for aggressive-deficit cases where volume feeding via non-starchy vegetables increases fiber intake.
                 </p>
               </div>
 

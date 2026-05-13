@@ -15,7 +15,7 @@ describe('MACRO_DEFAULTS', () => {
 })
 
 describe('FIBER_DEFAULT_G', () => {
-  it('is 30 (Phil Graham / SCAN 2015 minimum)', () => {
+  it('is 30 (SCAN 2015 minimum)', () => {
     expect(FIBER_DEFAULT_G).toBe(30)
   })
 })
