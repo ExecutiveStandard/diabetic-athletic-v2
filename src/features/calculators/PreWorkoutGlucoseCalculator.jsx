@@ -49,6 +49,29 @@ const INTENSITY_RPE_FROM_BAND = {
   veryHard: 9,  // else → 'veryHard'
 }
 
+// Personalization inputs (added 2026-05-13) — see spec
+// docs/superpowers/specs/2026-05-13-workout-fueling-calc-personalization-design.md
+
+const CYCLE_PHASES = [
+  { id: 'follicular', label: 'Follicular Phase', detail: 'Early cycle, post-period' },
+  { id: 'midCycle',   label: 'Mid-cycle',        detail: '~Ovulation' },
+  { id: 'luteal',     label: 'Luteal Phase',     detail: 'Late cycle, pre-period' },
+  { id: 'unknown',    label: "Don't know / N/A", detail: 'Default — works for most' },
+]
+
+const TRAINING_STATUSES = [
+  { id: 'untrained',     label: 'Untrained',      detail: 'Little or no regular exercise' },
+  { id: 'recreational',  label: 'Recreational',   detail: '2–3 days/week, casual' },
+  { id: 'trained',       label: 'Trained',        detail: '4–5 days/week, structured plan' },
+  { id: 'highlyTrained', label: 'Highly Trained', detail: '6–7 days/week, competitive' },
+]
+
+const INSULIN_ADJUSTMENTS = [
+  { id: 'none',        label: 'None',        detail: 'Normal basal & bolus' },
+  { id: 'modest',      label: 'Modest',      detail: '25–50% reduction' },
+  { id: 'significant', label: 'Significant', detail: '50–80% reduction' },
+]
+
 export default function PreWorkoutGlucoseCalculator() {
   // Glucose
   const [glucoseUnit, setGlucoseUnit] = useState('mmol')
@@ -62,6 +85,14 @@ export default function PreWorkoutGlucoseCalculator() {
   const [intensity, setIntensity] = useState(5)
   const [hrZone, setHrZone] = useState('Z3')  // Default: Zone 3 (Moderate Effort)
   const [duration, setDuration] = useState('')
+
+  // Personalization (added 2026-05-13)
+  const [sex,               setSex]               = useState('male')
+  const [cyclePhase,        setCyclePhase]        = useState('unknown')
+  const [cycleExpanded,     setCycleExpanded]     = useState(false)
+  const [trainingStatus,    setTrainingStatus]    = useState('recreational')
+  const [fastedFed,         setFastedFed]         = useState('fed')
+  const [insulinAdjustment, setInsulinAdjustment] = useState('none')
 
   // IOB
   const [iobUnits, setIobUnits] = useState('')
@@ -126,8 +157,14 @@ export default function PreWorkoutGlucoseCalculator() {
         : { grams: 0, minutesAgo: 0 },
       bodyweightKg,
       timeOfDay,
+      // NEW personalization inputs
+      sex,
+      cyclePhase,
+      trainingStatus,
+      fastedFed,
+      insulinAdjustment,
     })
-  }, [startGlucose, glucoseUnit, trendArrow, workoutType, intensity, hrZone, duration, effectiveIob, hasRecentCarbs, recentGrams, recentMinutesAgo, weight, weightUnit, timeOfDay])
+  }, [startGlucose, glucoseUnit, trendArrow, workoutType, intensity, hrZone, duration, effectiveIob, hasRecentCarbs, recentGrams, recentMinutesAgo, weight, weightUnit, timeOfDay, sex, cyclePhase, trainingStatus, fastedFed, insulinAdjustment])
 
   const reset = () => {
     setStartGlucose(''); setTrendArrow('flat'); setWorkoutType('aerobic')
@@ -135,6 +172,9 @@ export default function PreWorkoutGlucoseCalculator() {
     setIobHelperOpen(false); setLastBolus(''); setMinutesSinceBolus('')
     setHasRecentCarbs(false); setRecentGrams(''); setRecentMinutesAgo('')
     setWeight('')
+    // Personalization defaults
+    setSex('male'); setCyclePhase('unknown'); setCycleExpanded(false)
+    setTrainingStatus('recreational'); setFastedFed('fed'); setInsulinAdjustment('none')
   }
 
   return (
@@ -163,6 +203,45 @@ export default function PreWorkoutGlucoseCalculator() {
 
           {/* INPUT CARD */}
           <div className="bg-da-card rounded-2xl p-6 md:p-8 space-y-6">
+
+            {/* Sex */}
+            <div>
+              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Sex</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[['male', 'Male'], ['female', 'Female']].map(([id, lbl]) => (
+                  <button key={id} type="button" onClick={() => setSex(id)}
+                    className={`py-3 rounded-lg ${sex === id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+
+              {/* Cycle phase expander — only when Female */}
+              {sex === 'female' && (
+                <>
+                  <button type="button" onClick={() => setCycleExpanded(!cycleExpanded)}
+                    className="text-da-cyan text-xs uppercase tracking-wider mt-2 font-bold">
+                    {cycleExpanded ? '− Hide menstrual cycle refinement' : '+ Refine for menstrual cycle phase (optional)'}
+                  </button>
+                  {cycleExpanded && (
+                    <div className="mt-3 p-4 bg-da-dark rounded-lg">
+                      <p className="text-xs text-white/50 mb-3">
+                        Cycle phase affects insulin sensitivity. Adjusts the fuel calculation by ~5–15%. If you're not menstruating, on hormonal contraception, or don't track your cycle, leave this as "Don't know / N/A" — the default works for most users.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {CYCLE_PHASES.map((p) => (
+                          <button key={p.id} type="button" onClick={() => setCyclePhase(p.id)}
+                            className={`p-3 rounded-lg text-left ${cyclePhase === p.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-darker border border-white/10'}`}>
+                            <div className={`font-bold text-sm ${cyclePhase === p.id ? 'text-da-cyan' : 'text-white'}`}>{p.label}</div>
+                            <div className="text-[10px] text-white/40 mt-0.5">{p.detail}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Glucose */}
             <div>
@@ -203,6 +282,20 @@ export default function PreWorkoutGlucoseCalculator() {
                     className={`p-3 rounded-lg text-left ${workoutType === w.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
                     <div className={`font-bold ${workoutType === w.id ? 'text-da-cyan' : 'text-white'}`}>{w.label}</div>
                     <div className="text-xs text-white/40">{w.detail}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Training status */}
+            <div>
+              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Training Status</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {TRAINING_STATUSES.map((t) => (
+                  <button key={t.id} type="button" onClick={() => setTrainingStatus(t.id)}
+                    className={`p-3 rounded-lg text-left ${trainingStatus === t.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                    <div className={`font-bold ${trainingStatus === t.id ? 'text-da-cyan' : 'text-white'}`}>{t.label}</div>
+                    <div className="text-xs text-white/40">{t.detail}</div>
                   </button>
                 ))}
               </div>
@@ -273,6 +366,20 @@ export default function PreWorkoutGlucoseCalculator() {
               )}
             </div>
 
+            {/* Pre-workout insulin adjustment */}
+            <div>
+              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Pre-Workout Insulin Adjustment</label>
+              <div className="grid grid-cols-3 gap-2">
+                {INSULIN_ADJUSTMENTS.map((a) => (
+                  <button key={a.id} type="button" onClick={() => setInsulinAdjustment(a.id)}
+                    className={`p-3 rounded-lg text-left ${insulinAdjustment === a.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                    <div className={`font-bold text-sm ${insulinAdjustment === a.id ? 'text-da-cyan' : 'text-white'}`}>{a.label}</div>
+                    <div className="text-[10px] text-white/40 mt-0.5">{a.detail}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Recent carbs (optional) */}
             <div>
               <label className="inline-flex items-center cursor-pointer">
@@ -285,6 +392,23 @@ export default function PreWorkoutGlucoseCalculator() {
                   <input type="number" inputMode="numeric" value={recentMinutesAgo} onChange={(e) => setRecentMinutesAgo(e.target.value)} placeholder="Minutes ago" className="bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
                 </div>
               )}
+            </div>
+
+            {/* Fasted / Fed */}
+            <div>
+              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Meal State</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ['fed',    'Fed',            'Eaten within the last 4 hours'],
+                  ['fasted', 'Fasted (4+ hr)', 'No food for 4+ hours'],
+                ].map(([id, lbl, detail]) => (
+                  <button key={id} type="button" onClick={() => setFastedFed(id)}
+                    className={`p-3 rounded-lg text-left ${fastedFed === id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                    <div className={`font-bold ${fastedFed === id ? 'text-da-cyan' : 'text-white'}`}>{lbl}</div>
+                    <div className="text-xs text-white/40">{detail}</div>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Body weight */}
