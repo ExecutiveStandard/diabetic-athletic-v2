@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
+import BodyFatSelector from '../../components/BodyFatSelector'
 
 // =============================================================================
 // THE DIABETIC ATHLETIC MAGIC RATIO CALCULATOR
@@ -214,7 +215,7 @@ export default function InsulinCalculator() {
 
   // Personalization inputs (only visible when mode === 'advanced')
   const [actualTdd,         setActualTdd]         = useState('')
-  const [bodyFatPercent,    setBodyFatPercent]    = useState('')
+  const [bodyFatPercent,    setBodyFatPercent]    = useState(20)
   const [trainingStatus,    setTrainingStatus]    = useState('recreational')
   const [sex,               setSex]               = useState('male')
   const [cyclePhase,        setCyclePhase]        = useState('unknown')
@@ -228,7 +229,7 @@ export default function InsulinCalculator() {
       weight: w,
       weightUnits,
       actualTdd:      isAdvanced ? parseFloat(actualTdd) || 0 : 0,
-      bodyFatPercent: isAdvanced ? parseFloat(bodyFatPercent) || 0 : 0,
+      bodyFatPercent: isAdvanced ? bodyFatPercent : 0,
       trainingStatus: isAdvanced ? trainingStatus : 'recreational',
       sex:            isAdvanced ? sex : 'male',
       cyclePhase:     isAdvanced ? cyclePhase : 'unknown',
@@ -282,7 +283,7 @@ export default function InsulinCalculator() {
     setCarbGrams(''); setTimeOfDay('morning'); setCurrentBG('')
     // Personalization defaults
     setMode('beginner')
-    setActualTdd(''); setBodyFatPercent(''); setTrainingStatus('recreational')
+    setActualTdd(''); setBodyFatPercent(20); setTrainingStatus('recreational')
     setSex('male'); setCyclePhase('unknown'); setCycleExpanded(false)
   }
 
@@ -513,39 +514,6 @@ export default function InsulinCalculator() {
                 </p>
               </div>
 
-              {/* Body Fat % */}
-              <div className="mb-4">
-                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                  Body Fat % (optional)
-                </label>
-                <input
-                  type="number" step="0.5" min="5" max="60"
-                  value={bodyFatPercent}
-                  onChange={(e) => setBodyFatPercent(e.target.value)}
-                  placeholder="e.g. 18"
-                  className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-                />
-                <p className="text-white/40 text-xs mt-1 italic">
-                  For a more accurate TDD estimate if you know your body fat %. Skip if you provided actual TDD above.
-                </p>
-              </div>
-
-              {/* Training Status */}
-              <div className="mb-4">
-                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
-                  Training Status
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {TRAINING_STATUSES.map((t) => (
-                    <button key={t.id} type="button" onClick={() => setTrainingStatus(t.id)}
-                      className={`p-3 rounded-lg text-left ${trainingStatus === t.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-darker border border-white/15'}`}>
-                      <div className={`font-bold text-sm ${trainingStatus === t.id ? 'text-da-cyan' : 'text-white'}`}>{t.label}</div>
-                      <div className="text-[10px] text-white/40 mt-0.5">{t.detail}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Sex (+ optional Cycle expander) */}
               <div>
                 <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">Sex</label>
@@ -583,6 +551,36 @@ export default function InsulinCalculator() {
                     )}
                   </>
                 )}
+              </div>
+
+              {/* Body Fat % — moved below Sex so the reference image already
+                  reflects the chosen sex */}
+              <div className="mb-4 mt-4">
+                <BodyFatSelector
+                  sex={sex}
+                  value={bodyFatPercent}
+                  onChange={setBodyFatPercent}
+                  label="Body Fat % (optional)"
+                />
+                <p className="text-white/40 text-xs mt-2 italic">
+                  Skip if you provided Actual TDD above — body fat % is only used to refine the estimated TDD.
+                </p>
+              </div>
+
+              {/* Training Status */}
+              <div className="mb-4">
+                <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-2">
+                  Training Status
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {TRAINING_STATUSES.map((t) => (
+                    <button key={t.id} type="button" onClick={() => setTrainingStatus(t.id)}
+                      className={`p-3 rounded-lg text-left ${trainingStatus === t.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-darker border border-white/15'}`}>
+                      <div className={`font-bold text-sm ${trainingStatus === t.id ? 'text-da-cyan' : 'text-white'}`}>{t.label}</div>
+                      <div className="text-[10px] text-white/40 mt-0.5">{t.detail}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </StepCard>
           )}
