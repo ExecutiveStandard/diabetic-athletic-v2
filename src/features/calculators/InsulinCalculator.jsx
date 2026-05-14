@@ -221,16 +221,17 @@ export default function InsulinCalculator() {
   // ===== Computed =====
   const tdd = useMemo(() => {
     const w = parseFloat(weight)
+    const isAdvanced = mode === 'advanced'
     return calcTDD({
       weight: w,
       weightUnits,
-      actualTdd:      parseFloat(actualTdd) || 0,
-      bodyFatPercent: parseFloat(bodyFatPercent) || 0,
-      trainingStatus,
-      sex,
-      cyclePhase,
+      actualTdd:      isAdvanced ? parseFloat(actualTdd) || 0 : 0,
+      bodyFatPercent: isAdvanced ? parseFloat(bodyFatPercent) || 0 : 0,
+      trainingStatus: isAdvanced ? trainingStatus : 'recreational',
+      sex:            isAdvanced ? sex : 'male',
+      cyclePhase:     isAdvanced ? cyclePhase : 'unknown',
     })
-  }, [weight, weightUnits, actualTdd, bodyFatPercent, trainingStatus, sex, cyclePhase])
+  }, [mode, weight, weightUnits, actualTdd, bodyFatPercent, trainingStatus, sex, cyclePhase])
 
   const systemISF = useMemo(
     () => calcISF({ tdd, insulinType, bgUnit }),
@@ -502,7 +503,7 @@ export default function InsulinCalculator() {
                   Actual Total Daily Dose (units, optional)
                 </label>
                 <input
-                  type="number" step="0.5" min="0" max="200"
+                  type="number" step="0.5" min="5" max="200"
                   value={actualTdd}
                   onChange={(e) => setActualTdd(e.target.value)}
                   placeholder="e.g. 32"
@@ -519,7 +520,7 @@ export default function InsulinCalculator() {
                   Body Fat % (optional)
                 </label>
                 <input
-                  type="number" step="0.5" min="0" max="60"
+                  type="number" step="0.5" min="5" max="60"
                   value={bodyFatPercent}
                   onChange={(e) => setBodyFatPercent(e.target.value)}
                   placeholder="e.g. 18"
