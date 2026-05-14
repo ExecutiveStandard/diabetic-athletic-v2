@@ -736,7 +736,7 @@ export default function InsulinCalculator() {
           </p>
 
           {/* Dawn vs Foot-to-Floor educational card */}
-          <section className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan mt-6">
+          <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan mt-6">
             <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">🌅 Why your morning numbers might still need adjusting</p>
             <div className="text-white/70 space-y-3 text-sm leading-relaxed">
               <p>
@@ -749,7 +749,7 @@ export default function InsulinCalculator() {
                 These two get conflated constantly. If you suspect one of them is affecting your mornings, track your numbers around waking for a week and look at the pattern — getting the diagnosis right is the first step toward dosing with confidence.
               </p>
             </div>
-          </section>
+          </div>
 
           {/* Reset */}
           <div className="flex justify-center pt-4">
