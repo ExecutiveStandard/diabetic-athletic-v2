@@ -83,10 +83,12 @@ function calcTDD({
   if (!weight || weight <= 0) return 0
 
   // Step 1 — determine base TDD
+  // Out-of-range Actual TDD or Body Fat % values are silently ignored
+  // (the field's HTML min/max only blocks the spin buttons, not paste).
   let tdd
-  if (actualTdd && actualTdd > 0) {
+  if (actualTdd && actualTdd >= 5 && actualTdd <= 200) {
     tdd = actualTdd
-  } else if (bodyFatPercent && bodyFatPercent > 0 && bodyFatPercent < 60) {
+  } else if (bodyFatPercent && bodyFatPercent >= 5 && bodyFatPercent <= 60) {
     const lbm = weight * (1 - bodyFatPercent / 100)
     tdd = weightUnits === 'kg' ? lbm * 0.7 : (lbm / 2.2) * 0.7
   } else {
