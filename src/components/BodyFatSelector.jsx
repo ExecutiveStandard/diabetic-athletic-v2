@@ -44,12 +44,12 @@ export default function BodyFatSelector({ sex, value, onChange, label = 'Body Fa
       </div>
 
       {/* Reference image */}
-      <div className="mt-6 bg-da-darker rounded-lg p-4 border border-white/5 flex items-center justify-center">
+      <div className="mt-6 flex items-center justify-center">
         <img
           src={BODY_FAT_IMAGES[safeSex]}
           alt={`${safeSex} body fat percentage reference chart`}
           loading="lazy"
-          className="max-w-full h-auto rounded"
+          className="max-w-full h-auto"
           style={{ maxHeight: '320px' }}
         />
       </div>
