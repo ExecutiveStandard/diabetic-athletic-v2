@@ -485,9 +485,6 @@ export default function InsulinCalculator() {
               </div>
             </div>
 
-            <InfoBox>
-              These are starting-point estimates. If your body is more insulin-resistant, you may need a higher dose. If you're more sensitive, you may need less. Always log your numbers and adjust with your healthcare team.
-            </InfoBox>
           </StepCard>
 
           {/* Advanced Inputs — conditional on mode === 'advanced' */}
@@ -732,6 +729,27 @@ export default function InsulinCalculator() {
               </div>
             </div>
           </StepCard>
+
+          {/* Reality-check note — frames the calculator output as starting points */}
+          <p className="text-xs text-white/50 italic text-center mt-6">
+            These are your calibrated starting points. Track your real-world response over 1–2 weeks and you'll lock in the version that's truly yours.
+          </p>
+
+          {/* Dawn vs Foot-to-Floor educational card */}
+          <section className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan mt-6">
+            <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">🌅 Why your morning numbers might still need adjusting</p>
+            <div className="text-white/70 space-y-3 text-sm leading-relaxed">
+              <p>
+                <strong className="text-white">Dawn Phenomenon</strong> is a slow glucose rise that happens <em>while you're still asleep</em> (typically 2–4 AM), driven by overnight hormones. If your glucose is <em>already</em> elevated when you check on waking, that's a sign of dawn phenomenon — usually addressed by overnight basal adjustments or bedtime tweaks, not by this calculator.
+              </p>
+              <p>
+                <strong className="text-white">Foot-to-Floor</strong> is the sharp glucose spike that happens <em>after you get out of bed</em>, driven by the cortisol and adrenaline of waking up. Your glucose is fine on waking, then rises 15–60 minutes later. Many T1Ds preempt this with a small fixed bolus on waking.
+              </p>
+              <p>
+                These two get conflated constantly. If you suspect one of them is affecting your mornings, track your numbers around waking for a week and look at the pattern — getting the diagnosis right is the first step toward dosing with confidence.
+              </p>
+            </div>
+          </section>
 
           {/* Reset */}
           <div className="flex justify-center pt-4">
