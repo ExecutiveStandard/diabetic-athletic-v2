@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
+import BodyFatSelector from '../../components/BodyFatSelector'
 
 // =============================================================================
 // Original Diabetic Athletic protein calculator — ported faithfully from the
@@ -23,12 +24,6 @@ const WORKOUT_HOURS = [
   { id: 'hours7', label: '7+' },
 ]
 
-// Original Diabetic Athletic body-fat reference images (hosted on the
-// MyClickFunnels CDN — same URLs used in the GHL widget).
-const BODY_FAT_IMAGES = {
-  male:   'https://statics.myclickfunnels.com/workspace/JELxgK/image/3795379/file/174198207fb42981ce293b7d0c1eb1fb.png',
-  female: 'https://statics.myclickfunnels.com/workspace/JELxgK/image/3795382/file/9234b73ede43e6798d40f03e0caa533c.png',
-}
 
 // =============================================================================
 // MATH — straight port of the original protein_intake() function
@@ -459,48 +454,12 @@ export default function ProteinCalculator() {
             </div>
           </div>
 
-          {/* ============== Body Fat % Slider ============== */}
-          <div>
-            <label className="block text-sm font-bold uppercase tracking-wider text-white/80 mb-1">
-              Body Fat Percentage
-            </label>
-            <p className="text-white/50 text-xs mb-4">
-              Use the picture below to help estimate.
-            </p>
-
-            {/* Slider */}
-            <div className="relative pt-8 pb-2">
-              <div
-                className="absolute -top-1 transform -translate-x-1/2 px-3 py-1 rounded-md bg-da-gradient text-da-dark text-xs font-black"
-                style={{ left: `${((bodyFat - 5) / (60 - 5)) * 100}%` }}
-              >
-                {bodyFat}%
-              </div>
-              <input
-                type="range"
-                min="5"
-                max="60"
-                step="1"
-                value={bodyFat}
-                onChange={(e) => setBodyFat(parseInt(e.target.value))}
-                className="w-full accent-da-cyan h-2"
-              />
-              <div className="flex justify-between text-xs text-white/40 mt-2">
-                <span>5%</span>
-                <span>60%</span>
-              </div>
-            </div>
-
-            {/* Reference image */}
-            <div className="mt-6 bg-da-darker rounded-lg p-4 border border-white/5 flex items-center justify-center">
-              <img
-                src={BODY_FAT_IMAGES[gender]}
-                alt={`${gender} body fat percentage reference chart`}
-                className="max-w-full h-auto rounded"
-                style={{ maxHeight: '320px' }}
-              />
-            </div>
-          </div>
+          {/* ============== Body Fat % Selector ============== */}
+          <BodyFatSelector
+            sex={gender}
+            value={bodyFat}
+            onChange={setBodyFat}
+          />
 
           {/* ============== Workout Hours ============== */}
           <div>
