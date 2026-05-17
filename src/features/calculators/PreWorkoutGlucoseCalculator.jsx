@@ -6,6 +6,16 @@ import { bandFor } from './pre-workout-glucose/riskBands'
 import { gramsNeeded } from './pre-workout-glucose/carbRecommendation'
 import { computeIob } from './pre-workout-glucose/iobDecay'
 import { mmolToMgdl, mgdlToMmol, formatGlucose } from './pre-workout-glucose/units'
+import OptInGate from '../../components/OptInGate'
+import { OPT_IN_CONTENT } from './optInContent'
+
+export default function PreWorkoutGlucoseCalculator() {
+  return (
+    <OptInGate slug="pre-workout-glucose" {...OPT_IN_CONTENT['pre-workout-glucose']}>
+      <PreWorkoutGlucoseCalculatorActual />
+    </OptInGate>
+  )
+}
 
 const WORKOUT_TYPES = [
   { id: 'aerobic',   label: 'Aerobic',   detail: 'Running, cycling, swimming' },
@@ -72,7 +82,7 @@ const INSULIN_ADJUSTMENTS = [
   { id: 'significant', label: 'Significant', detail: '50–80% reduction' },
 ]
 
-export default function PreWorkoutGlucoseCalculator() {
+function PreWorkoutGlucoseCalculatorActual() {
   // Glucose
   const [glucoseUnit, setGlucoseUnit] = useState('mmol')
   const [startGlucose, setStartGlucose] = useState('')
