@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
 import { predictEndGlucose } from './pre-workout-glucose/prediction'
 import { bandFor } from './pre-workout-glucose/riskBands'
-import { gramsNeeded } from './pre-workout-glucose/carbRecommendation'
+import { buildFuelPlan } from './pre-workout-glucose/fuelPlan'
 import { computeIob } from './pre-workout-glucose/iobDecay'
 import { mmolToMgdl, mgdlToMmol, formatGlucose } from './pre-workout-glucose/units'
 import OptInGate from '../../components/OptInGate'
@@ -175,6 +175,25 @@ function PreWorkoutGlucoseCalculatorActual() {
       insulinAdjustment,
     })
   }, [startGlucose, glucoseUnit, trendArrow, workoutType, intensity, hrZone, duration, effectiveIob, hasRecentCarbs, recentGrams, recentMinutesAgo, weight, weightUnit, timeOfDay, sex, cyclePhase, trainingStatus, fastedFed, insulinAdjustment])
+
+  // Build the fuel plan from the prediction + raw input state
+  const fuelPlan = useMemo(() => {
+    if (!prediction) return null
+    const startMmol = glucoseUnit === 'mmol'
+      ? parseFloat(startGlucose) || 0
+      : (parseFloat(startGlucose) || 0) / 18  // mg/dL → mmol/L
+    const durationMin = parseFloat(duration) || 0
+    const wtKg = weightUnit === 'kg' ? parseFloat(weight) || 70 : (parseFloat(weight) || 154) / 2.2046
+    const iob = parseFloat(effectiveIob) || 0
+    return buildFuelPlan({
+      startGlucoseMmol: startMmol,
+      predictedEndMmol: prediction.endMmol,
+      activityType: workoutType,
+      durationMinutes: durationMin,
+      bodyweightKg: wtKg,
+      iobUnits: iob,
+    })
+  }, [prediction, startGlucose, glucoseUnit, workoutType, duration, weight, weightUnit, effectiveIob])
 
   const reset = () => {
     setStartGlucose(''); setTrendArrow('flat'); setWorkoutType('aerobic')
@@ -450,7 +469,7 @@ function PreWorkoutGlucoseCalculatorActual() {
 
           </div>
 
-          {prediction && <PredictionResults prediction={prediction} bodyweightKg={parseFloat(weight) * (weightUnit === 'kg' ? 1 : 0.453592)} glucoseUnit={glucoseUnit} workoutType={workoutType} />}
+          {prediction && <PredictionResults prediction={prediction} fuelPlan={fuelPlan} bodyweightKg={parseFloat(weight) * (weightUnit === 'kg' ? 1 : 0.453592)} glucoseUnit={glucoseUnit} workoutType={workoutType} />}
 
           <div className="text-center pt-4">
             <Button variant="outline" onClick={reset}>Reset</Button>
@@ -463,9 +482,9 @@ function PreWorkoutGlucoseCalculatorActual() {
   )
 }
 
-function PredictionResults({ prediction, bodyweightKg, glucoseUnit, workoutType }) {
+function PredictionResults({ prediction, fuelPlan, bodyweightKg, glucoseUnit, workoutType }) {
   const band = bandFor(prediction.endMmol)
-  const carbs = gramsNeeded(prediction.endMmol, bodyweightKg || 70)
+  const carbs = fuelPlan?.preWorkout?.grams || 0
 
   const display = (mmol) => glucoseUnit === 'mmol'
     ? `${formatGlucose(mmol, 'mmol')} mmol/L`
