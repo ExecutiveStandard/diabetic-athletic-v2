@@ -43,10 +43,6 @@ function calcBMR({ gender, weightKg, heightCm, age }) {
 }
 
 function CalorieCalculatorActual() {
-  // Lead capture
-  const [firstName, setFirstName] = useState('')
-  const [email, setEmail] = useState('')
-
   // Stats
   const [gender, setGender] = useState('male')
   const [units, setUnits] = useState('metric')
@@ -133,7 +129,7 @@ function CalorieCalculatorActual() {
   }, [macros, goalCalories])
 
   const reset = () => {
-    setFirstName(''); setEmail(''); setAge(''); setWeight('')
+    setAge(''); setWeight('')
     setHeightCm(''); setHeightFt(''); setHeightIn('')
     setActivity(null); setGoal(null)
     setProteinPerKg(null); setFatPercent(null); setFiberGrams(FIBER_DEFAULT_G)
@@ -170,21 +166,6 @@ function CalorieCalculatorActual() {
             </h2>
 
             <div className="space-y-4">
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Your First Name…"
-                className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-              />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Your BEST Email Address *"
-                className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
-              />
-
               <input
                 type="number"
                 min="10" max="120"
