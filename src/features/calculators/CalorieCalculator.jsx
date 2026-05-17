@@ -7,6 +7,16 @@ import {
   FIBER_DEFAULT_G,
   SLIDER_RANGES,
 } from './calorie-tdee/macros'
+import OptInGate from '../../components/OptInGate'
+import { OPT_IN_CONTENT } from './optInContent'
+
+export default function CalorieCalculator() {
+  return (
+    <OptInGate slug="calorie" {...OPT_IN_CONTENT.calorie}>
+      <CalorieCalculatorActual />
+    </OptInGate>
+  )
+}
 
 // Activity multipliers — matches the original Diabetic Athletic CCalc.io widget exactly.
 // These are slightly lower than the textbook Mifflin-St Jeor multipliers (1.375, 1.55, 1.725)
@@ -32,7 +42,7 @@ function calcBMR({ gender, weightKg, heightCm, age }) {
   return Math.round(gender === 'male' ? base + 5 : base - 161)
 }
 
-export default function CalorieCalculator() {
+function CalorieCalculatorActual() {
   // Lead capture
   const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
