@@ -2,6 +2,16 @@ import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
 import BodyFatSelector from '../../components/BodyFatSelector'
+import OptInGate from '../../components/OptInGate'
+import { OPT_IN_CONTENT } from './optInContent'
+
+export default function ProteinCalculator() {
+  return (
+    <OptInGate slug="protein" {...OPT_IN_CONTENT.protein}>
+      <ProteinCalculatorActual />
+    </OptInGate>
+  )
+}
 
 // =============================================================================
 // Original Diabetic Athletic protein calculator — ported faithfully from the
@@ -308,7 +318,7 @@ function ProteinSourceGuide() {
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
-export default function ProteinCalculator() {
+function ProteinCalculatorActual() {
   // Original defaults: lbs, male, age <34, body fat 20%, hours 0-1, plant-based No
   const [units, setUnits]         = useState('lbs')
   const [gender, setGender]       = useState('male')
