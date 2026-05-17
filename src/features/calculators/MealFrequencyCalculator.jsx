@@ -3,6 +3,16 @@ import { Link, useSearchParams } from 'react-router-dom'
 import Button from '../../components/Button'
 import { buildDayPlan } from './meal-frequency/planner'
 import { defaultMealCount, suggestMealCount } from './meal-frequency/mealCount'
+import OptInGate from '../../components/OptInGate'
+import { OPT_IN_CONTENT } from './optInContent'
+
+export default function MealFrequencyCalculator() {
+  return (
+    <OptInGate slug="meal-frequency" {...OPT_IN_CONTENT['meal-frequency']}>
+      <MealFrequencyCalculatorActual />
+    </OptInGate>
+  )
+}
 
 const TRAINING_TIMES = [
   { id: 'morning',   label: 'Morning' },
@@ -10,7 +20,7 @@ const TRAINING_TIMES = [
   { id: 'evening',   label: 'Evening' },
 ]
 
-export default function MealFrequencyCalculator() {
+function MealFrequencyCalculatorActual() {
   const [calories, setCalories] = useState('')
   const [protein,  setProtein]  = useState('')
   const [fat,      setFat]      = useState('')
