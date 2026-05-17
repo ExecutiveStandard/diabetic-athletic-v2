@@ -46,9 +46,8 @@ export default function OptInGate({
 
   const isReturningUser =
     status === 'gated' &&
-    typeof window !== 'undefined' &&
-    Boolean(localStorage.getItem('optinName')) &&
-    Boolean(localStorage.getItem('optinEmail'))
+    firstName.trim().length > 0 &&
+    email.trim().length > 0
 
   // Fade out the success banner after 5s
   useEffect(() => {
@@ -103,7 +102,7 @@ export default function OptInGate({
     return (
       <>
         {showBanner && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-da-cyan text-da-dark font-bold px-6 py-3 rounded-lg shadow-lg text-sm">
+          <div role="status" className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-da-cyan text-da-dark font-bold px-6 py-3 rounded-lg shadow-lg text-sm">
             ✓ You're in — the calculator is unlocked below.
           </div>
         )}
@@ -148,6 +147,7 @@ export default function OptInGate({
             <div className="mb-3">
               <input
                 type="text"
+                aria-label="First name"
                 placeholder="First name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
@@ -163,6 +163,7 @@ export default function OptInGate({
             <div className="mb-4">
               <input
                 type="email"
+                aria-label="Email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
