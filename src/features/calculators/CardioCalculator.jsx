@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
+import OptInGate from '../../components/OptInGate'
+import { OPT_IN_CONTENT } from './optInContent'
+
+export default function CardioCalculator() {
+  return (
+    <OptInGate slug="cardio" {...OPT_IN_CONTENT.cardio}>
+      <CardioCalculatorActual />
+    </OptInGate>
+  )
+}
 
 // =============================================================================
 // CARDIO HEART RATE ZONES CALCULATOR
@@ -174,7 +184,7 @@ function ZoneCard({ zone, age, rhr, hasResults }) {
 // =============================================================================
 // MAIN
 // =============================================================================
-export default function CardioCalculator() {
+function CardioCalculatorActual() {
   const [ageRaw, setAgeRaw] = useState('')
   const [rhrRaw, setRhrRaw] = useState('')
 
