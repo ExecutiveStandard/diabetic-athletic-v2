@@ -2,6 +2,16 @@ import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/Button'
 import BodyFatSelector from '../../components/BodyFatSelector'
+import OptInGate from '../../components/OptInGate'
+import { OPT_IN_CONTENT } from './optInContent'
+
+export default function InsulinCalculator() {
+  return (
+    <OptInGate slug="magic-ratio" {...OPT_IN_CONTENT['magic-ratio']}>
+      <InsulinCalculatorActual />
+    </OptInGate>
+  )
+}
 
 // =============================================================================
 // THE DIABETIC ATHLETIC MAGIC RATIO CALCULATOR
@@ -192,7 +202,7 @@ function InfoBox({ children }) {
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
-export default function InsulinCalculator() {
+function InsulinCalculatorActual() {
   // Step 1 — baseline inputs
   const [insulinType, setInsulinType] = useState('rapid')
   const [bgUnit, setBgUnit]           = useState('mg/dL')
