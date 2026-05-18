@@ -4,7 +4,6 @@
 // Spec: docs/superpowers/specs/2026-05-17-workout-fueling-redesign-design.md
 // Tests: ./fuelPlan.test.js
 
-const TARGET_MID_MMOL = 7.5
 const SAFETY_FLOOR_MMOL = 5.0
 const SAFETY_CEILING_MMOL = 15.0
 const ANAEROBIC_FLOOR_MMOL = 6.0
@@ -34,7 +33,7 @@ function gramsToCloseGap(gapMmol, weightKg) {
 }
 
 function buildTopUps(durationMinutes, weightKg, activityType) {
-  if (activityType === 'anaerobic') return []
+  if (activityType === 'anaerobic' || activityType === 'strength') return []
   if (durationMinutes <= 60) return []
 
   const perTopUpRaw = TOP_UP_PER_KG_PER_INTERVAL * weightKg

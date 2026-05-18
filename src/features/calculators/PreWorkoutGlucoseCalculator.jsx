@@ -181,9 +181,9 @@ function PreWorkoutGlucoseCalculatorActual() {
     if (!prediction) return null
     const startMmol = glucoseUnit === 'mmol'
       ? parseFloat(startGlucose) || 0
-      : (parseFloat(startGlucose) || 0) / 18  // mg/dL → mmol/L
+      : mgdlToMmol(parseFloat(startGlucose) || 0)
     const durationMin = parseFloat(duration) || 0
-    const wtKg = weightUnit === 'kg' ? parseFloat(weight) || 70 : (parseFloat(weight) || 154) / 2.2046
+    const wtKg = weightUnit === 'kg' ? parseFloat(weight) || 70 : (parseFloat(weight) || 154) * 0.453592
     const iob = parseFloat(effectiveIob) || 0
     return buildFuelPlan({
       startGlucoseMmol: startMmol,

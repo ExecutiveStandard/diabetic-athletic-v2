@@ -152,6 +152,18 @@ describe('buildFuelPlan — anaerobic', () => {
   })
 })
 
+describe('buildFuelPlan — strength', () => {
+  it('strength never gets mid-workout top-ups even at 90+ min', () => {
+    const r = plan({
+      activityType: 'strength',
+      durationMinutes: 120,
+      startGlucoseMmol: 7.0,
+      predictedEndMmol: 6.5,
+    })
+    expect(r.topUps).toEqual([])
+  })
+})
+
 describe('buildFuelPlan — mixed', () => {
   it('mixed dose is ~60% of equivalent aerobic dose', () => {
     const inputs = {
