@@ -82,7 +82,26 @@ const INSULIN_ADJUSTMENTS = [
   { id: 'significant', label: 'Significant', detail: '50–80% reduction' },
 ]
 
+function StepCard({ stepNumber, title, children }) {
+  return (
+    <div className="bg-da-card rounded-2xl p-6 md:p-8">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-8 h-8 rounded-full bg-da-cyan/20 border border-da-cyan flex items-center justify-center text-da-cyan font-black text-sm flex-shrink-0">
+          {stepNumber}
+        </div>
+        <h3 className="text-white font-bold text-lg uppercase tracking-wider">{title}</h3>
+      </div>
+      <div className="space-y-6">{children}</div>
+    </div>
+  )
+}
+
 function PreWorkoutGlucoseCalculatorActual() {
+  // Mode toggle — Beginner (default) shows the 5 essentials only; Advanced
+  // reveals HR zone, insulin type, adjustment, trend, sex, training status,
+  // fasted/fed, time of day, recent carbs.
+  const [mode, setMode] = useState('beginner')
+
   // Glucose
   const [glucoseUnit, setGlucoseUnit] = useState('mmol')
   const [startGlucose, setStartGlucose] = useState('')
@@ -196,6 +215,7 @@ function PreWorkoutGlucoseCalculatorActual() {
   }, [prediction, startGlucose, glucoseUnit, workoutType, duration, weight, weightUnit, effectiveIob])
 
   const reset = () => {
+    setMode('beginner')
     setStartGlucose(''); setTrendArrow('flat'); setWorkoutType('aerobic')
     setIntensity(5); setHrZone('Z3'); setDuration(''); setIobUnits('')
     setIobHelperOpen(false); setLastBolus(''); setMinutesSinceBolus('')
@@ -230,49 +250,25 @@ function PreWorkoutGlucoseCalculatorActual() {
       <section className="da-container section-padding">
         <div className="max-w-3xl mx-auto space-y-6">
 
-          {/* INPUT CARD */}
-          <div className="bg-da-card rounded-2xl p-6 md:p-8 space-y-6">
-
-            {/* Sex */}
-            <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Sex</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[['male', 'Male'], ['female', 'Female']].map(([id, lbl]) => (
-                  <button key={id} type="button" onClick={() => setSex(id)}
-                    className={`py-3 rounded-lg ${sex === id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-
-              {/* Cycle phase expander — only when Female */}
-              {sex === 'female' && (
-                <>
-                  <button type="button" onClick={() => setCycleExpanded(!cycleExpanded)}
-                    className="text-da-cyan text-xs uppercase tracking-wider mt-2 font-bold">
-                    {cycleExpanded ? '− Hide menstrual cycle refinement' : '+ Refine for menstrual cycle phase (optional)'}
-                  </button>
-                  {cycleExpanded && (
-                    <div className="mt-3 p-4 bg-da-dark rounded-lg">
-                      <p className="text-xs text-white/50 mb-3">
-                        Cycle phase affects insulin sensitivity. Adjusts the fuel calculation by ~5–15%. If you're not menstruating, on hormonal contraception, or don't track your cycle, leave this as "Don't know / N/A" — the default works for most users.
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {CYCLE_PHASES.map((p) => (
-                          <button key={p.id} type="button" onClick={() => setCyclePhase(p.id)}
-                            className={`p-3 rounded-lg text-left ${cyclePhase === p.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-darker border border-white/10'}`}>
-                            <div className={`font-bold text-sm ${cyclePhase === p.id ? 'text-da-cyan' : 'text-white'}`}>{p.label}</div>
-                            <div className="text-[10px] text-white/40 mt-0.5">{p.detail}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
+          {/* Mode toggle — Beginner / Advanced */}
+          <div className="mb-6">
+            <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Mode</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ['beginner', 'Beginner', 'Recommended'],
+                ['advanced', 'Advanced', 'I want more accuracy'],
+              ].map(([id, lbl, detail]) => (
+                <button key={id} type="button" onClick={() => setMode(id)}
+                  className={`p-3 rounded-lg text-left ${mode === id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                  <div className={`font-bold ${mode === id ? 'text-da-cyan' : 'text-white'}`}>{lbl}</div>
+                  <div className="text-xs text-white/40">{detail}</div>
+                </button>
+              ))}
             </div>
+          </div>
 
-            {/* Glucose */}
+          {/* StepCard 1 — Starting Glucose */}
+          <StepCard stepNumber={1} title="Starting Glucose">
             <div>
               <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Starting Glucose</label>
               <div className="flex gap-2">
@@ -288,23 +284,13 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </div>
               </div>
             </div>
+          </StepCard>
 
-            {/* Trend arrow */}
+          {/* StepCard 2 — Workout */}
+          <StepCard stepNumber={2} title="Workout">
+            {/* Activity type */}
             <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">CGM Trend Arrow</label>
-              <div className="grid grid-cols-5 gap-2">
-                {TRENDS.map((t) => (
-                  <button key={t.id} type="button" onClick={() => setTrendArrow(t.id)}
-                    className={`py-3 rounded-lg text-2xl ${trendArrow === t.id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Workout type */}
-            <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Workout Type</label>
+              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Activity Type</label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {WORKOUT_TYPES.map((w) => (
                   <button key={w.id} type="button" onClick={() => setWorkoutType(w.id)}
@@ -316,53 +302,6 @@ function PreWorkoutGlucoseCalculatorActual() {
               </div>
             </div>
 
-            {/* Training status */}
-            <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Training Status</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {TRAINING_STATUSES.map((t) => (
-                  <button key={t.id} type="button" onClick={() => setTrainingStatus(t.id)}
-                    className={`p-3 rounded-lg text-left ${trainingStatus === t.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
-                    <div className={`font-bold ${trainingStatus === t.id ? 'text-da-cyan' : 'text-white'}`}>{t.label}</div>
-                    <div className="text-xs text-white/40">{t.detail}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Intensity — HR Zone selector for aerobic, RPE slider for everything else */}
-            {workoutType === 'aerobic' ? (
-              <div>
-                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">
-                  Training Zone — {HR_ZONES.find((z) => z.id === hrZone).label} ({HR_ZONES.find((z) => z.id === hrZone).rangeHrr} HRR)
-                </label>
-                <div className="grid grid-cols-5 gap-2">
-                  {HR_ZONES.map((z) => (
-                    <button key={z.id} type="button" onClick={() => setHrZone(z.id)}
-                      className={`p-2 rounded-lg text-center ${hrZone === z.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
-                      <div className={`font-bold text-sm ${hrZone === z.id ? 'text-da-cyan' : 'text-white'}`}>{z.id}</div>
-                      <div className="text-[10px] text-white/40 mt-0.5">{z.label}</div>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-white/40 italic mt-2">
-                  Don't know your zones?{' '}
-                  <a href="/calculators/cardio" target="_blank" rel="noopener noreferrer" className="text-da-cyan underline">
-                    Calculate them here ↗
-                  </a>
-                </p>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Intensity (RPE 1–10) — {intensity}</label>
-                <input type="range" min="1" max="10" value={intensity} onChange={(e) => setIntensity(parseInt(e.target.value))}
-                  className="w-full accent-da-cyan" />
-                <div className="flex justify-between text-xs text-white/40 mt-1">
-                  <span>Easy</span><span>Moderate</span><span>Hard</span><span>Very Hard</span>
-                </div>
-              </div>
-            )}
-
             {/* Duration */}
             <div>
               <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Planned Duration (minutes)</label>
@@ -370,8 +309,26 @@ function PreWorkoutGlucoseCalculatorActual() {
                 placeholder="e.g. 45"
                 className="w-full bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
             </div>
+          </StepCard>
 
-            {/* IOB */}
+          {/* StepCard 3 — Body Weight */}
+          <StepCard stepNumber={3} title="Body Weight">
+            <div>
+              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Body Weight</label>
+              <div className="flex gap-2">
+                <input type="number" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)}
+                  placeholder={weightUnit === 'kg' ? 'e.g. 75' : 'e.g. 165'}
+                  className="flex-1 bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
+                <div className="flex bg-da-dark border border-white/10 rounded-lg overflow-hidden">
+                  <button type="button" onClick={() => setWeightUnit('kg')} className={`px-4 ${weightUnit === 'kg' ? 'bg-da-cyan text-da-dark font-bold' : 'text-white/60'}`}>kg</button>
+                  <button type="button" onClick={() => setWeightUnit('lb')} className={`px-4 ${weightUnit === 'lb' ? 'bg-da-cyan text-da-dark font-bold' : 'text-white/60'}`}>lb</button>
+                </div>
+              </div>
+            </div>
+          </StepCard>
+
+          {/* StepCard 4 — Active Insulin (IOB) */}
+          <StepCard stepNumber={4} title="Active Insulin (IOB)">
             <div>
               <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Active Insulin (IOB, units)</label>
               <input type="number" inputMode="decimal" step="0.1" value={iobUnits}
@@ -394,80 +351,183 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </div>
               )}
             </div>
+          </StepCard>
 
-            {/* Pre-workout insulin adjustment */}
-            <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Pre-Workout Insulin Adjustment</label>
-              <div className="grid grid-cols-3 gap-2">
-                {INSULIN_ADJUSTMENTS.map((a) => (
-                  <button key={a.id} type="button" onClick={() => setInsulinAdjustment(a.id)}
-                    className={`p-3 rounded-lg text-left ${insulinAdjustment === a.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
-                    <div className={`font-bold text-sm ${insulinAdjustment === a.id ? 'text-da-cyan' : 'text-white'}`}>{a.label}</div>
-                    <div className="text-[10px] text-white/40 mt-0.5">{a.detail}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Advanced refinements — only when mode === 'advanced' */}
+          {mode === 'advanced' && (
+            <StepCard stepNumber="A" title="Advanced refinements (optional)">
+              <p className="text-white/60 text-sm mb-4">
+                The more we know about you, the more accurate your fuel plan. All fields below are optional — fill in what you know.
+              </p>
 
-            {/* Recent carbs (optional) */}
-            <div>
-              <label className="inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={hasRecentCarbs} onChange={(e) => setHasRecentCarbs(e.target.checked)} className="mr-2 accent-da-cyan" />
-                <span className="text-da-cyan uppercase tracking-wider text-xs font-bold">Have you eaten any carbs recently?</span>
-              </label>
-              {hasRecentCarbs && (
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  <input type="number" inputMode="numeric" value={recentGrams} onChange={(e) => setRecentGrams(e.target.value)} placeholder="Grams" className="bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
-                  <input type="number" inputMode="numeric" value={recentMinutesAgo} onChange={(e) => setRecentMinutesAgo(e.target.value)} placeholder="Minutes ago" className="bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
+              {/* 1. HR Zone (conditional on workoutType === 'aerobic') */}
+              {workoutType === 'aerobic' ? (
+                <div>
+                  <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">
+                    Training Zone — {HR_ZONES.find((z) => z.id === hrZone).label} ({HR_ZONES.find((z) => z.id === hrZone).rangeHrr} HRR)
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {HR_ZONES.map((z) => (
+                      <button key={z.id} type="button" onClick={() => setHrZone(z.id)}
+                        className={`p-2 rounded-lg text-center ${hrZone === z.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                        <div className={`font-bold text-sm ${hrZone === z.id ? 'text-da-cyan' : 'text-white'}`}>{z.id}</div>
+                        <div className="text-[10px] text-white/40 mt-0.5">{z.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-white/40 italic mt-2">
+                    Don't know your zones?{' '}
+                    <a href="/calculators/cardio" target="_blank" rel="noopener noreferrer" className="text-da-cyan underline">
+                      Calculate them here ↗
+                    </a>
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Intensity (RPE 1–10) — {intensity}</label>
+                  <input type="range" min="1" max="10" value={intensity} onChange={(e) => setIntensity(parseInt(e.target.value))}
+                    className="w-full accent-da-cyan" />
+                  <div className="flex justify-between text-xs text-white/40 mt-1">
+                    <span>Easy</span><span>Moderate</span><span>Hard</span><span>Very Hard</span>
+                  </div>
                 </div>
               )}
-            </div>
 
-            {/* Fasted / Fed */}
-            <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Meal State</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  ['fed',    'Fed',            'Eaten within the last 4 hours'],
-                  ['fasted', 'Fasted (4+ hr)', 'No food for 4+ hours'],
-                ].map(([id, lbl, detail]) => (
-                  <button key={id} type="button" onClick={() => setFastedFed(id)}
-                    className={`p-3 rounded-lg text-left ${fastedFed === id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
-                    <div className={`font-bold ${fastedFed === id ? 'text-da-cyan' : 'text-white'}`}>{lbl}</div>
-                    <div className="text-xs text-white/40">{detail}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Body weight */}
-            <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Body Weight</label>
-              <div className="flex gap-2">
-                <input type="number" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)}
-                  placeholder={weightUnit === 'kg' ? 'e.g. 75' : 'e.g. 165'}
-                  className="flex-1 bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
-                <div className="flex bg-da-dark border border-white/10 rounded-lg overflow-hidden">
-                  <button type="button" onClick={() => setWeightUnit('kg')} className={`px-4 ${weightUnit === 'kg' ? 'bg-da-cyan text-da-dark font-bold' : 'text-white/60'}`}>kg</button>
-                  <button type="button" onClick={() => setWeightUnit('lb')} className={`px-4 ${weightUnit === 'lb' ? 'bg-da-cyan text-da-dark font-bold' : 'text-white/60'}`}>lb</button>
+              {/* 2. Insulin type selector */}
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Insulin Type</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setInsulinType('rapid')} className={`flex-1 py-3 rounded-lg text-sm ${insulinType === 'rapid' ? 'bg-da-cyan/20 border border-da-cyan text-da-cyan font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>Rapid-acting</button>
+                  <button type="button" onClick={() => setInsulinType('ultra')} className={`flex-1 py-3 rounded-lg text-sm ${insulinType === 'ultra' ? 'bg-da-cyan/20 border border-da-cyan text-da-cyan font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>Ultra-rapid</button>
                 </div>
               </div>
-            </div>
 
-            {/* Time of day */}
-            <div>
-              <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Time of Day</label>
-              <div className="grid grid-cols-3 gap-2">
-                {TIME_OF_DAY.map((t) => (
-                  <button key={t.id} type="button" onClick={() => setTimeOfDay(t.id)}
-                    className={`py-3 rounded-lg ${timeOfDay === t.id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
-                    {t.label}
-                  </button>
-                ))}
+              {/* 3. Pre-workout insulin adjustment */}
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Pre-Workout Insulin Adjustment</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {INSULIN_ADJUSTMENTS.map((a) => (
+                    <button key={a.id} type="button" onClick={() => setInsulinAdjustment(a.id)}
+                      className={`p-3 rounded-lg text-left ${insulinAdjustment === a.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                      <div className={`font-bold text-sm ${insulinAdjustment === a.id ? 'text-da-cyan' : 'text-white'}`}>{a.label}</div>
+                      <div className="text-[10px] text-white/40 mt-0.5">{a.detail}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-          </div>
+              {/* 4. Trend arrow */}
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">CGM Trend Arrow</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {TRENDS.map((t) => (
+                    <button key={t.id} type="button" onClick={() => setTrendArrow(t.id)}
+                      className={`py-3 rounded-lg text-2xl ${trendArrow === t.id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 5. Sex + cycle expander */}
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Sex</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[['male', 'Male'], ['female', 'Female']].map(([id, lbl]) => (
+                    <button key={id} type="button" onClick={() => setSex(id)}
+                      className={`py-3 rounded-lg ${sex === id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Cycle phase expander — only when Female */}
+                {sex === 'female' && (
+                  <>
+                    <button type="button" onClick={() => setCycleExpanded(!cycleExpanded)}
+                      className="text-da-cyan text-xs uppercase tracking-wider mt-2 font-bold">
+                      {cycleExpanded ? '− Hide menstrual cycle refinement' : '+ Refine for menstrual cycle phase (optional)'}
+                    </button>
+                    {cycleExpanded && (
+                      <div className="mt-3 p-4 bg-da-dark rounded-lg">
+                        <p className="text-xs text-white/50 mb-3">
+                          Cycle phase affects insulin sensitivity. Adjusts the fuel calculation by ~5–15%. If you're not menstruating, on hormonal contraception, or don't track your cycle, leave this as "Don't know / N/A" — the default works for most users.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {CYCLE_PHASES.map((p) => (
+                            <button key={p.id} type="button" onClick={() => setCyclePhase(p.id)}
+                              className={`p-3 rounded-lg text-left ${cyclePhase === p.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-darker border border-white/10'}`}>
+                              <div className={`font-bold text-sm ${cyclePhase === p.id ? 'text-da-cyan' : 'text-white'}`}>{p.label}</div>
+                              <div className="text-[10px] text-white/40 mt-0.5">{p.detail}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* 6. Training status */}
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Training Status</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {TRAINING_STATUSES.map((t) => (
+                    <button key={t.id} type="button" onClick={() => setTrainingStatus(t.id)}
+                      className={`p-3 rounded-lg text-left ${trainingStatus === t.id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                      <div className={`font-bold ${trainingStatus === t.id ? 'text-da-cyan' : 'text-white'}`}>{t.label}</div>
+                      <div className="text-xs text-white/40">{t.detail}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 7. Fasted vs Fed */}
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Meal State</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ['fed',    'Fed',            'Eaten within the last 4 hours'],
+                    ['fasted', 'Fasted (4+ hr)', 'No food for 4+ hours'],
+                  ].map(([id, lbl, detail]) => (
+                    <button key={id} type="button" onClick={() => setFastedFed(id)}
+                      className={`p-3 rounded-lg text-left ${fastedFed === id ? 'bg-da-cyan/20 border border-da-cyan' : 'bg-da-dark border border-white/10'}`}>
+                      <div className={`font-bold ${fastedFed === id ? 'text-da-cyan' : 'text-white'}`}>{lbl}</div>
+                      <div className="text-xs text-white/40">{detail}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 8. Time of day */}
+              <div>
+                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Time of Day</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {TIME_OF_DAY.map((t) => (
+                    <button key={t.id} type="button" onClick={() => setTimeOfDay(t.id)}
+                      className={`py-3 rounded-lg ${timeOfDay === t.id ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 9. Recent carbs expander */}
+              <div>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={hasRecentCarbs} onChange={(e) => setHasRecentCarbs(e.target.checked)} className="mr-2 accent-da-cyan" />
+                  <span className="text-da-cyan uppercase tracking-wider text-xs font-bold">Have you eaten any carbs recently?</span>
+                </label>
+                {hasRecentCarbs && (
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <input type="number" inputMode="numeric" value={recentGrams} onChange={(e) => setRecentGrams(e.target.value)} placeholder="Grams" className="bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
+                    <input type="number" inputMode="numeric" value={recentMinutesAgo} onChange={(e) => setRecentMinutesAgo(e.target.value)} placeholder="Minutes ago" className="bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
+                  </div>
+                )}
+              </div>
+
+            </StepCard>
+          )}
 
           {prediction && <PredictionResults prediction={prediction} fuelPlan={fuelPlan} bodyweightKg={parseFloat(weight) * (weightUnit === 'kg' ? 1 : 0.453592)} glucoseUnit={glucoseUnit} workoutType={workoutType} />}
 
