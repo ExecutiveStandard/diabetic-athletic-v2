@@ -218,7 +218,7 @@ function PreWorkoutGlucoseCalculatorActual() {
     setMode('beginner')
     setStartGlucose(''); setTrendArrow('flat'); setWorkoutType('aerobic')
     setIntensity(5); setHrZone('Z3'); setDuration(''); setIobUnits('')
-    setIobHelperOpen(false); setLastBolus(''); setMinutesSinceBolus('')
+    setIobHelperOpen(false); setLastBolus(''); setMinutesSinceBolus(''); setInsulinType('rapid')
     setHasRecentCarbs(false); setRecentGrams(''); setRecentMinutesAgo('')
     setWeight('')
     // Personalization defaults
@@ -393,16 +393,7 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </div>
               )}
 
-              {/* 2. Insulin type selector */}
-              <div>
-                <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Insulin Type</label>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setInsulinType('rapid')} className={`flex-1 py-3 rounded-lg text-sm ${insulinType === 'rapid' ? 'bg-da-cyan/20 border border-da-cyan text-da-cyan font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>Rapid-acting</button>
-                  <button type="button" onClick={() => setInsulinType('ultra')} className={`flex-1 py-3 rounded-lg text-sm ${insulinType === 'ultra' ? 'bg-da-cyan/20 border border-da-cyan text-da-cyan font-bold' : 'bg-da-dark border border-white/10 text-white/60'}`}>Ultra-rapid</button>
-                </div>
-              </div>
-
-              {/* 3. Pre-workout insulin adjustment */}
+              {/* 2. Pre-workout insulin adjustment */}
               <div>
                 <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Pre-Workout Insulin Adjustment</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -416,7 +407,7 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </div>
               </div>
 
-              {/* 4. Trend arrow */}
+              {/* 3. Trend arrow */}
               <div>
                 <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">CGM Trend Arrow</label>
                 <div className="grid grid-cols-5 gap-2">
@@ -429,7 +420,7 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </div>
               </div>
 
-              {/* 5. Sex + cycle expander */}
+              {/* 4. Sex + cycle expander */}
               <div>
                 <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Sex</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -468,7 +459,7 @@ function PreWorkoutGlucoseCalculatorActual() {
                 )}
               </div>
 
-              {/* 6. Training status */}
+              {/* 5. Training status */}
               <div>
                 <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Training Status</label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -482,7 +473,7 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </div>
               </div>
 
-              {/* 7. Fasted vs Fed */}
+              {/* 6. Fasted vs Fed */}
               <div>
                 <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Meal State</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -499,7 +490,7 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </div>
               </div>
 
-              {/* 8. Time of day */}
+              {/* 7. Time of day */}
               <div>
                 <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Time of Day</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -512,7 +503,7 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </div>
               </div>
 
-              {/* 9. Recent carbs expander */}
+              {/* 8. Recent carbs expander */}
               <div>
                 <label className="inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={hasRecentCarbs} onChange={(e) => setHasRecentCarbs(e.target.checked)} className="mr-2 accent-da-cyan" />
