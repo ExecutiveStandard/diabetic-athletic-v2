@@ -520,7 +520,13 @@ function PreWorkoutGlucoseCalculatorActual() {
             </StepCard>
           )}
 
-          {prediction && <PredictionResults prediction={prediction} fuelPlan={fuelPlan} bodyweightKg={parseFloat(weight) * (weightUnit === 'kg' ? 1 : 0.453592)} glucoseUnit={glucoseUnit} workoutType={workoutType} />}
+          {prediction && fuelPlan && (
+              <FuelPlanResults
+                fuelPlan={fuelPlan}
+                prediction={prediction}
+                glucoseUnit={glucoseUnit}
+              />
+            )}
 
           <div className="text-center pt-4">
             <Button variant="outline" onClick={reset}>Reset</Button>
@@ -533,50 +539,88 @@ function PreWorkoutGlucoseCalculatorActual() {
   )
 }
 
-function PredictionResults({ prediction, fuelPlan, bodyweightKg, glucoseUnit, workoutType }) {
-  const band = bandFor(prediction.endMmol)
-  const carbs = fuelPlan?.preWorkout?.grams || 0
+function FuelPlanResults({ fuelPlan, prediction, glucoseUnit }) {
+  const display = (mmol) =>
+    glucoseUnit === 'mmol'
+      ? `${formatGlucose(mmol, 'mmol')} mmol/L`
+      : `${formatGlucose(mmolToMgdl(mmol), 'mgdl')} mg/dL`
 
-  const display = (mmol) => glucoseUnit === 'mmol'
-    ? `${formatGlucose(mmol, 'mmol')} mmol/L`
-    : `${formatGlucose(mmolToMgdl(mmol), 'mgdl')} mg/dL`
-
-  // Tip text by workout type
-  const tips = {
-    aerobic:   'Aerobic exercise typically lowers glucose steadily. Recheck at 30min. Carry 15g fast carbs.',
-    anaerobic: 'High-intensity work can raise glucose during, then drop afterward. Watch the cool-down window.',
-    mixed:     'Mixed workouts have variable responses — recheck at 20 and 40min.',
-    strength:  'Strength training has lower hypo-risk during, but post-workout drops are common 1–4hr later.',
+  // Safety branch — overrides everything
+  if (fuelPlan.status === 'delay' || fuelPlan.status === 'high-bg-warning') {
+    return (
+      <div className="space-y-4">
+        <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-yellow-400">
+          <p className="text-yellow-400 uppercase tracking-wider text-xs font-bold mb-2">
+            {fuelPlan.status === 'delay' ? '⚠️ Don\'t start your workout yet' : '⚠️ Check for ketones before starting'}
+          </p>
+          <p className="text-white text-base leading-relaxed">{fuelPlan.warning}</p>
+        </div>
+        {fuelPlan.iobNote && (
+          <p className="text-white/50 italic text-sm">{fuelPlan.iobNote}</p>
+        )}
+      </div>
+    )
   }
 
+  // Normal output — fuel or no-fuel
   return (
     <div className="space-y-4">
-      {/* Headline */}
-      <div className="bg-da-card rounded-2xl p-6 md:p-8 border-2" style={{ borderColor: band.color }}>
-        <p className="text-white/50 uppercase tracking-wider text-xs font-bold mb-2">Predicted End-Glucose</p>
-        <div className="flex items-baseline gap-3 flex-wrap">
-          <span className="text-5xl md:text-6xl font-black text-white">{display(prediction.endMmol)}</span>
-          <span className="text-lg text-white/40">({glucoseUnit === 'mmol' ? `${mmolToMgdl(prediction.endMmol)} mg/dL` : `${formatGlucose(prediction.endMmol, 'mmol')} mmol/L`})</span>
-        </div>
-        <div className="mt-4 inline-block px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider" style={{ backgroundColor: band.color + '22', color: band.color, border: `1px solid ${band.color}66` }}>
-          {band.label}
+      {/* HERO — Your Fuel Plan */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Your Fuel Plan</p>
+        {fuelPlan.status === 'no-fuel' ? (
+          <>
+            <p className="text-2xl md:text-3xl font-black text-white mb-2">
+              ✅ No pre-workout fuel needed
+            </p>
+            <p className="text-white/70 text-base leading-relaxed">
+              Your BG is in a good starting range. Anaerobic work can spike your glucose during and after the session — watch for needing correction insulin in the cool-down window. Don't pre-bolus pre-workout in case the spike doesn't materialize.
+            </p>
+          </>
+        ) : (
+          <div className="space-y-3">
+            {fuelPlan.preWorkout && (
+              <p className="text-xl md:text-2xl font-bold text-white">
+                💪 Eat <span className="text-da-cyan">{fuelPlan.preWorkout.grams}g</span> of fast-acting carbs {fuelPlan.preWorkout.timingText}
+              </p>
+            )}
+            {fuelPlan.topUps.map((t, i) => (
+              <p key={i} className="text-lg text-white/90">
+                🔁 At {t.atMinutes} min: <span className="text-da-cyan font-bold">{t.grams}g</span> top-up
+              </p>
+            ))}
+            {fuelPlan.preWorkout && (
+              <p className="text-white/60 text-sm italic mt-3">
+                Glucose tabs, juice, dextrose, or sports drink work well. {fuelPlan.topUps.length > 0 && 'Carry your top-ups with you — gels and chews are easier mid-workout.'}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Comparison row */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">What This Fuel Plan Does</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-white/50 text-xs uppercase tracking-wider mb-1">Without this fuel</p>
+            <p className="text-2xl font-black text-white">{display(fuelPlan.predictedEndWithoutFuel)}</p>
+          </div>
+          <div>
+            <p className="text-white/50 text-xs uppercase tracking-wider mb-1">With this fuel</p>
+            <p className="text-2xl font-black text-da-cyan">{display(fuelPlan.predictedEndWithFuel)} ✓</p>
+          </div>
         </div>
       </div>
 
-      {/* Recommendation */}
-      <div className="bg-da-card rounded-2xl p-6 md:p-8">
-        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Recommendation</p>
-        <p className="text-white text-lg">
-          {carbs > 0
-            ? `Consume ${carbs}g of fast-acting carbs (glucose tabs, juice, dextrose) now and recheck in 15 minutes before starting.`
-            : band.action
-          }
-        </p>
-      </div>
+      {/* IOB context note */}
+      {fuelPlan.iobNote && (
+        <p className="text-white/50 italic text-sm px-2">{fuelPlan.iobNote}</p>
+      )}
 
-      {/* Why this prediction */}
+      {/* Why */}
       <div className="bg-da-card rounded-2xl p-6 md:p-8">
-        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Why this prediction</p>
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Why</p>
         <ul className="space-y-2">
           {prediction.breakdown.map((item, idx) => (
             <li key={idx} className="flex items-start gap-3 text-sm">
@@ -591,15 +635,17 @@ function PredictionResults({ prediction, fuelPlan, bodyweightKg, glucoseUnit, wo
 
       {/* During-workout tips */}
       <div className="bg-da-card rounded-2xl p-6 md:p-8">
-        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">During-Workout Tips</p>
-        <p className="text-white/70">{tips[workoutType] || tips.aerobic}</p>
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">During Your Workout</p>
+        <p className="text-white/70">
+          Recheck your BG at 20 minutes if you feel low. If you're trending fast in either direction, adjust on the fly — these numbers are calibrated starting points, not commandments.
+        </p>
       </div>
 
       {/* Post-workout brief */}
       <div className="bg-da-card rounded-2xl p-6 md:p-8">
         <p className="text-da-gold uppercase tracking-wider text-xs font-bold mb-2">Post-Workout Brief</p>
         <p className="text-white/70">
-          You may experience a <strong>delayed glucose drop 4–6 hours post-workout</strong> due to ongoing glycogen replenishment. Recheck at 1hr and 4hr after finishing. Your post-workout insulin needs may be reduced by 50–75%. <Link to="/calculators/magic-ratio" className="text-da-cyan underline">Use the Magic Ratio Calculator</Link> to recalibrate your bolus around training.
+          📉 Watch for a delayed glucose drop 4–6 hours after finishing — glycogen replenishment continues even after the workout ends. Recheck at 1 hour and 4 hours after stopping. Your post-workout bolus needs may be reduced by 50–75%. <Link to="/calculators/magic-ratio" className="text-da-cyan underline">Use the Magic Ratio Calculator</Link> to recalibrate.
         </p>
       </div>
     </div>
