@@ -107,8 +107,8 @@ export function buildFuelPlan({
       0,
       PRE_WORKOUT_MAX_G,
     )
-  } else if (activityType === 'anaerobic') {
-    // Anaerobic: 0g unless starting BG is below the anaerobic floor (6.0)
+  } else if (activityType === 'anaerobic' || activityType === 'strength') {
+    // Anaerobic/strength: 0g unless starting BG is below the anaerobic floor (6.0)
     if (startGlucoseMmol < ANAEROBIC_FLOOR_MMOL) {
       const protectiveGap = ANAEROBIC_FLOOR_MMOL - startGlucoseMmol
       preWorkoutGrams = gramsToCloseGap(protectiveGap, bodyweightKg)

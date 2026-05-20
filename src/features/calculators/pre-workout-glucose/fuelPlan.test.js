@@ -162,6 +162,19 @@ describe('buildFuelPlan — strength', () => {
     })
     expect(r.topUps).toEqual([])
   })
+
+  it('strength at low BG (<6) → protective top-up to bring BG to ~6', () => {
+    const r = plan({
+      startGlucoseMmol: 5.0,
+      predictedEndMmol: 4.5,
+      activityType: 'strength',
+      durationMinutes: 30,
+    })
+    expect(r.status).toBe('fuel')
+    expect(r.preWorkout).not.toBeNull()
+    expect(r.preWorkout.grams).toBeGreaterThan(0)
+    expect(r.preWorkout.grams).toBeLessThanOrEqual(15)
+  })
 })
 
 describe('buildFuelPlan — mixed', () => {
