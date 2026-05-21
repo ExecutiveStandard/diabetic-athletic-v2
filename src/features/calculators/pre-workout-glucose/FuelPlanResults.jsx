@@ -1,0 +1,122 @@
+import { Link } from 'react-router-dom'
+import { formatGlucose, mmolToMgdl } from './units'
+
+export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, activityType }) {
+  const display = (mmol) =>
+    glucoseUnit === 'mmol'
+      ? `${formatGlucose(mmol, 'mmol')} mmol/L`
+      : `${formatGlucose(mmolToMgdl(mmol), 'mgdl')} mg/dL`
+
+  // Safety branch — overrides everything
+  if (fuelPlan.status === 'delay' || fuelPlan.status === 'high-bg-warning') {
+    return (
+      <div className="space-y-4">
+        <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-yellow-400">
+          <p className="text-yellow-400 uppercase tracking-wider text-xs font-bold mb-2">
+            {fuelPlan.status === 'delay' ? '⚠️ Don\'t start your workout yet' : '⚠️ Check for ketones before starting'}
+          </p>
+          <p className="text-white text-base leading-relaxed">{fuelPlan.warning}</p>
+        </div>
+        {fuelPlan.iobNote && (
+          <p className="text-white/50 italic text-sm">{fuelPlan.iobNote}</p>
+        )}
+      </div>
+    )
+  }
+
+  // Normal output — fuel or no-fuel
+  return (
+    <div className="space-y-4">
+      {/* HERO — Your Fuel Plan */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Your Fuel Plan</p>
+        {fuelPlan.status === 'no-fuel' ? (
+          <>
+            <p className="text-2xl md:text-3xl font-black text-white mb-2">
+              ✅ No pre-workout fuel needed
+            </p>
+            <p className="text-white/70 text-base leading-relaxed">
+              {{
+                aerobic: "Your BG is in a good starting range. You should be able to complete your aerobic session without pre-workout fuel — recheck at 20 minutes if you feel low, and have 15g of fast carbs on hand just in case.",
+                mixed: "Your BG is in a good starting range. Mixed sessions can swing in either direction — recheck at the halfway point and top up with 10–15g if you've dropped to 5 mmol/L or lower.",
+                anaerobic: "Your BG is in a good starting range. Anaerobic work can spike your glucose during and after the session — watch for needing correction insulin in the cool-down window. Don't pre-bolus pre-workout in case the spike doesn't materialize.",
+                strength: "Your BG is in a good starting range. Strength training can spike your glucose during and after the session — watch for needing correction insulin in the cool-down window. Don't pre-bolus pre-workout in case the spike doesn't materialize.",
+              }[activityType] || "Your BG is in a good starting range. Recheck at 20 minutes if you feel low, and have 15g of fast carbs on hand just in case."}
+            </p>
+          </>
+        ) : (
+          <div className="space-y-3">
+            {fuelPlan.preWorkout && (
+              <p className="text-xl md:text-2xl font-bold text-white">
+                💪 Eat <span className="text-da-cyan">{fuelPlan.preWorkout.grams}g</span> of fast-acting carbs {fuelPlan.preWorkout.timingText}
+              </p>
+            )}
+            {fuelPlan.topUps.map((t, i) => (
+              <p key={i} className="text-lg text-white/90">
+                🔁 At {t.atMinutes} min: <span className="text-da-cyan font-bold">{t.grams}g</span> top-up
+              </p>
+            ))}
+            {fuelPlan.preWorkout && (
+              <p className="text-white/60 text-sm italic mt-3">
+                Glucose tabs, juice, dextrose, or sports drink work well. {fuelPlan.topUps.length > 0 && 'Carry your top-ups with you — gels and chews are easier mid-workout.'}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Comparison row — only when a fuel plan was actually recommended */}
+      {fuelPlan.status === 'fuel' && (
+        <div className="bg-da-card rounded-2xl p-6 md:p-8">
+          <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">What This Fuel Plan Does</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-white/50 text-xs uppercase tracking-wider mb-1">Without this fuel</p>
+              <p className="text-2xl font-black text-white">{display(fuelPlan.predictedEndWithoutFuel)}</p>
+            </div>
+            <div>
+              <p className="text-white/50 text-xs uppercase tracking-wider mb-1">With this fuel</p>
+              <p className="text-2xl font-black text-da-cyan">{display(fuelPlan.predictedEndWithFuel)} ✓</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IOB context note */}
+      {fuelPlan.iobNote && (
+        <p className="text-white/50 italic text-sm px-2">{fuelPlan.iobNote}</p>
+      )}
+
+      {/* Why */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Why</p>
+        <ul className="space-y-2">
+          {prediction.breakdown.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-3 text-sm">
+              <span className={`font-bold ${item.delta < 0 ? 'text-red-400' : item.delta > 0 ? 'text-da-gold' : 'text-white/60'}`}>
+                {item.delta > 0 ? '+' : ''}{item.delta.toFixed(1)} mmol/L
+              </span>
+              <span className="text-white/70 flex-1">{item.label} — <span className="text-white/40">{item.reasoning}</span></span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* During-workout tips */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">During Your Workout</p>
+        <p className="text-white/70">
+          Recheck your BG at 20 minutes if you feel low. If you're trending fast in either direction, adjust on the fly — these numbers are calibrated starting points, not commandments.
+        </p>
+      </div>
+
+      {/* Post-workout brief */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8">
+        <p className="text-da-gold uppercase tracking-wider text-xs font-bold mb-2">Post-Workout Brief</p>
+        <p className="text-white/70">
+          📉 Watch for a delayed glucose drop 4–6 hours after finishing — glycogen replenishment continues even after the workout ends. Recheck at 1 hour and 4 hours after stopping. Your post-workout bolus needs may be reduced by 50–75%. <Link to="/calculators/magic-ratio" className="text-da-cyan underline">Use the Magic Ratio Calculator</Link> to recalibrate.
+        </p>
+      </div>
+    </div>
+  )
+}
