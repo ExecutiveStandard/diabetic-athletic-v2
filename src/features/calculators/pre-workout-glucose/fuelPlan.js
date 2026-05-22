@@ -1,20 +1,31 @@
 // Builds a fuel plan from the prediction inputs + the prediction engine's
 // end-glucose output. Pure function — no React, no state, no side effects.
 //
-// Spec: docs/superpowers/specs/2026-05-17-workout-fueling-redesign-design.md
+// Output shape splits the recommendation into:
+//   rescue      — carbs needed NOW to bring BG into safe pre-workout range
+//   activityFuel — carbs needed to power the workout itself
+//   topUps      — mid-workout top-ups for sessions > 60 min
+//   totalGrams  — sum of all of the above
+//
+// Spec: docs/superpowers/specs/2026-05-22-workout-fueling-rescue-fuel-split-design.md
 // Tests: ./fuelPlan.test.js
 
-const SAFETY_FLOOR_MMOL = 5.0
+const TARGET_RESCUE_MMOL = 6.5
+const RESCUE_FLOOR_MMOL = 6.0
+const SAFETY_FLOOR_MMOL = 4.6
 const SAFETY_CEILING_MMOL = 15.0
-const ANAEROBIC_FLOOR_MMOL = 6.0
 const REFERENCE_WEIGHT_KG = 70
 
-const PRE_WORKOUT_MAX_G = 60
+const RESCUE_MIN_G = 5
+const RESCUE_MAX_G = 25
+const ACTIVITY_FUEL_MIN_G = 5
+const ACTIVITY_FUEL_MAX_G = 40
 const TOP_UP_MIN_G = 10
 const TOP_UP_MAX_G = 40
 
-const MIXED_DOSE_MULTIPLIER = 0.6
-const TOP_UP_PER_KG_PER_INTERVAL = 0.3   // g/kg per 30-min interval
+const ACTIVITY_FUEL_PER_KG_PER_HOUR = 0.4
+const MIXED_ACTIVITY_MULTIPLIER = 0.6
+const TOP_UP_PER_KG_PER_INTERVAL = 0.3
 const TOP_UP_INTERVAL_MIN = 30
 
 function roundTo5(n) {
@@ -25,11 +36,33 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
 }
 
-// 5g of fast carbs raises BG by ~1 mmol/L for a 70kg adult. Scales by weight.
 function gramsToCloseGap(gapMmol, weightKg) {
   if (gapMmol <= 0) return 0
-  const raw = 5 * gapMmol * (weightKg / REFERENCE_WEIGHT_KG)
-  return clamp(roundTo5(raw), 0, PRE_WORKOUT_MAX_G)
+  return 5 * gapMmol * (weightKg / REFERENCE_WEIGHT_KG)
+}
+
+function buildRescue(startGlucoseMmol, weightKg) {
+  if (startGlucoseMmol >= RESCUE_FLOOR_MMOL) return null
+  const gap = TARGET_RESCUE_MMOL - startGlucoseMmol
+  const raw = gramsToCloseGap(gap, weightKg)
+  const grams = clamp(roundTo5(raw), RESCUE_MIN_G, RESCUE_MAX_G)
+  return {
+    grams,
+    note: `Recheck in 15 min. Wait until you're at 6.5 mmol/L or higher before starting.`,
+  }
+}
+
+function buildActivityFuel(activityType, durationMinutes, weightKg) {
+  if (activityType === 'anaerobic' || activityType === 'strength') return null
+  if (!durationMinutes || durationMinutes <= 0) return null
+
+  const base = ACTIVITY_FUEL_PER_KG_PER_HOUR * weightKg * (durationMinutes / 60)
+  const adjusted = activityType === 'mixed' ? base * MIXED_ACTIVITY_MULTIPLIER : base
+  const grams = clamp(roundTo5(adjusted), ACTIVITY_FUEL_MIN_G, ACTIVITY_FUEL_MAX_G)
+  return {
+    grams,
+    timingText: '10–15 min before you start',
+  }
 }
 
 function buildTopUps(durationMinutes, weightKg, activityType) {
@@ -39,8 +72,6 @@ function buildTopUps(durationMinutes, weightKg, activityType) {
   const perTopUpRaw = TOP_UP_PER_KG_PER_INTERVAL * weightKg
   const perTopUp = clamp(roundTo5(perTopUpRaw), TOP_UP_MIN_G, TOP_UP_MAX_G)
 
-  // Top-ups scheduled every 30 min, but NOT in the final 60-min window.
-  // 61–90 min → one at 30 min; 91–120 min → two at 30, 60 min; etc.
   const topUps = []
   for (let t = TOP_UP_INTERVAL_MIN; t <= durationMinutes - 60; t += TOP_UP_INTERVAL_MIN) {
     topUps.push({ atMinutes: t, grams: perTopUp })
@@ -54,6 +85,13 @@ function buildIobNote(iobUnits) {
   return `You have ~${formatted}u of active insulin from a recent bolus. For future workouts at this time of day, consider reducing your pre-meal bolus by ~50% to lower hypo risk during exercise.`
 }
 
+function computeTotal(rescue, activityFuel, topUps) {
+  const r = rescue?.grams || 0
+  const f = activityFuel?.grams || 0
+  const t = topUps.reduce((s, tu) => s + tu.grams, 0)
+  return r + f + t
+}
+
 export function buildFuelPlan({
   startGlucoseMmol,
   predictedEndMmol,
@@ -62,70 +100,57 @@ export function buildFuelPlan({
   bodyweightKg,
   iobUnits,
 }) {
-  // Safety branch: starting BG below safe floor
+  const iobNote = buildIobNote(iobUnits)
+
   if (startGlucoseMmol < SAFETY_FLOOR_MMOL) {
     return {
       status: 'delay',
-      preWorkout: null,
+      rescue: null,
+      activityFuel: null,
       topUps: [],
+      totalGrams: 0,
       predictedEndWithoutFuel: predictedEndMmol,
       predictedEndWithFuel: predictedEndMmol,
-      iobNote: buildIobNote(iobUnits),
+      iobNote,
       warning:
         "Don't start your workout yet. Your BG is below 5 mmol/L. Eat 15-20g of fast-acting carbs, wait 15 minutes, then recheck. Begin only once your BG is above 5 mmol/L.",
     }
   }
 
-  // Safety branch: starting BG above safe ceiling
   if (startGlucoseMmol > SAFETY_CEILING_MMOL) {
     return {
       status: 'high-bg-warning',
-      preWorkout: null,
+      rescue: null,
+      activityFuel: null,
       topUps: [],
+      totalGrams: 0,
       predictedEndWithoutFuel: predictedEndMmol,
       predictedEndWithFuel: predictedEndMmol,
-      iobNote: buildIobNote(iobUnits),
+      iobNote,
       warning:
         'Check for ketones before starting. Your BG is above 15 mmol/L. If ketones are present, follow your diabetes team\'s guidance — don\'t exercise until cleared. If absent, keep this session light (low intensity only) and recheck BG mid-session.',
     }
   }
 
-  const iobNote = buildIobNote(iobUnits)
-
-  // Compute the aerobic baseline: fuel to cover the predicted drop during the workout.
-  // (startGlucoseMmol − predictedEndMmol) = how far BG is expected to fall.
-  const predictedDrop = startGlucoseMmol - predictedEndMmol
-  const aerobicGrams = gramsToCloseGap(predictedDrop, bodyweightKg)
-
-  let preWorkoutGrams = 0
-
-  if (activityType === 'aerobic') {
-    preWorkoutGrams = aerobicGrams
-  } else if (activityType === 'mixed') {
-    preWorkoutGrams = clamp(
-      roundTo5(aerobicGrams * MIXED_DOSE_MULTIPLIER),
-      0,
-      PRE_WORKOUT_MAX_G,
-    )
-  } else if (activityType === 'anaerobic' || activityType === 'strength') {
-    // Anaerobic/strength: 0g unless starting BG is below the anaerobic floor (6.0)
-    if (startGlucoseMmol < ANAEROBIC_FLOOR_MMOL) {
-      const protectiveGap = ANAEROBIC_FLOOR_MMOL - startGlucoseMmol
-      preWorkoutGrams = gramsToCloseGap(protectiveGap, bodyweightKg)
-    }
-  }
-
+  const rescue = buildRescue(startGlucoseMmol, bodyweightKg)
+  const activityFuel = buildActivityFuel(activityType, durationMinutes, bodyweightKg)
   const topUps = buildTopUps(durationMinutes, bodyweightKg, activityType)
+  const totalGrams = computeTotal(rescue, activityFuel, topUps)
 
-  // Project what BG will be at workout end if user follows the recommendation
+  // Predicted-end projection: model what BG will be at workout end if user
+  // follows the activityFuel + topUps plan. The rescue dose just brings them
+  // to start in range; it doesn't change the trajectory through the workout.
   const liftPerGram = (1 / 5) * (REFERENCE_WEIGHT_KG / bodyweightKg)
-  const predictedEndWithFuel = predictedEndMmol + preWorkoutGrams * liftPerGram
+  const activeFuelGrams = (activityFuel?.grams || 0) + topUps.reduce((s, t) => s + t.grams, 0)
+  const predictedEndWithFuel = predictedEndMmol + activeFuelGrams * liftPerGram
 
-  if (preWorkoutGrams === 0 && topUps.length === 0) {
+  if (totalGrams === 0) {
     return {
       status: 'no-fuel',
-      preWorkout: null,
+      rescue: null,
+      activityFuel: null,
       topUps: [],
+      totalGrams: 0,
       predictedEndWithoutFuel: predictedEndMmol,
       predictedEndWithFuel,
       iobNote,
@@ -135,14 +160,10 @@ export function buildFuelPlan({
 
   return {
     status: 'fuel',
-    preWorkout:
-      preWorkoutGrams > 0
-        ? {
-            grams: preWorkoutGrams,
-            timingText: activityType === 'aerobic' ? '15 minutes before you start' : '10 minutes before you start',
-          }
-        : null,
+    rescue,
+    activityFuel,
     topUps,
+    totalGrams,
     predictedEndWithoutFuel: predictedEndMmol,
     predictedEndWithFuel,
     iobNote,

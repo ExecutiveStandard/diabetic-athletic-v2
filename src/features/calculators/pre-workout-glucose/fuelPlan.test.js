@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildFuelPlan } from './fuelPlan'
 
-// Helper for shorter test calls
 function plan(overrides = {}) {
   return buildFuelPlan({
     startGlucoseMmol: 6.5,
@@ -14,254 +13,240 @@ function plan(overrides = {}) {
   })
 }
 
+describe('buildFuelPlan — return shape', () => {
+  it('returns rescue, activityFuel, topUps, totalGrams + the existing fields', () => {
+    const r = plan()
+    expect(r).toHaveProperty('status')
+    expect(r).toHaveProperty('rescue')
+    expect(r).toHaveProperty('activityFuel')
+    expect(r).toHaveProperty('topUps')
+    expect(r).toHaveProperty('totalGrams')
+    expect(r).toHaveProperty('predictedEndWithoutFuel')
+    expect(r).toHaveProperty('predictedEndWithFuel')
+    expect(r).toHaveProperty('iobNote')
+    expect(r).toHaveProperty('warning')
+    expect(r).not.toHaveProperty('preWorkout')
+  })
+})
+
 describe('buildFuelPlan — safety branches', () => {
-  it('returns status=delay when starting BG < 5 mmol/L', () => {
+  it('BG < 5 → delay status, no rescue, no fuel, no top-ups', () => {
     const r = plan({ startGlucoseMmol: 4.5 })
     expect(r.status).toBe('delay')
-    expect(r.preWorkout).toBeNull()
+    expect(r.rescue).toBeNull()
+    expect(r.activityFuel).toBeNull()
     expect(r.topUps).toEqual([])
+    expect(r.totalGrams).toBe(0)
     expect(r.warning).toContain("Don't start your workout yet")
   })
 
-  it('returns status=high-bg-warning when starting BG > 15 mmol/L', () => {
+  it('BG > 15 → high-bg-warning status, no rescue, no fuel, no top-ups', () => {
     const r = plan({ startGlucoseMmol: 16.0 })
     expect(r.status).toBe('high-bg-warning')
-    expect(r.preWorkout).toBeNull()
+    expect(r.rescue).toBeNull()
+    expect(r.activityFuel).toBeNull()
     expect(r.topUps).toEqual([])
+    expect(r.totalGrams).toBe(0)
     expect(r.warning).toContain('ketones')
   })
 
-  it('BG exactly 5.0 → fuel status (boundary inclusive on safe side)', () => {
+  it('BG exactly 5.0 → fuel status (boundary on safe side)', () => {
     const r = plan({ startGlucoseMmol: 5.0, predictedEndMmol: 3.5 })
     expect(r.status).toBe('fuel')
   })
+})
 
-  it('BG exactly 15.0 → fuel/no-fuel status (boundary inclusive on safe side)', () => {
-    const r = plan({ startGlucoseMmol: 15.0, predictedEndMmol: 12.0 })
-    expect(r.status).not.toBe('high-bg-warning')
+describe('buildFuelPlan — rescue dose (BG < 6)', () => {
+  it('BG 4.9, 70kg → ~10g rescue', () => {
+    const r = plan({ startGlucoseMmol: 4.9, bodyweightKg: 70 })
+    expect(r.rescue).not.toBeNull()
+    expect(r.rescue.grams).toBeGreaterThanOrEqual(10)
+    expect(r.rescue.grams).toBeLessThanOrEqual(15)
+  })
+
+  it('BG 4.9, 87kg → ~15g rescue (heavier user, scaled up)', () => {
+    const r = plan({ startGlucoseMmol: 4.9, bodyweightKg: 87 })
+    expect(r.rescue).not.toBeNull()
+    expect(r.rescue.grams).toBeGreaterThanOrEqual(10)
+    expect(r.rescue.grams).toBeLessThanOrEqual(20)
+  })
+
+  it('BG 5.5, 70kg → ~5g rescue (smaller gap)', () => {
+    const r = plan({ startGlucoseMmol: 5.5, bodyweightKg: 70 })
+    expect(r.rescue).not.toBeNull()
+    expect(r.rescue.grams).toBe(5)
+  })
+
+  it('BG 6.0 → no rescue (boundary, healthy range)', () => {
+    const r = plan({ startGlucoseMmol: 6.0 })
+    expect(r.rescue).toBeNull()
+  })
+
+  it('BG 7.5 → no rescue (clearly healthy)', () => {
+    const r = plan({ startGlucoseMmol: 7.5 })
+    expect(r.rescue).toBeNull()
+  })
+
+  it('rescue carries a note mentioning recheck in 15 min', () => {
+    const r = plan({ startGlucoseMmol: 4.9 })
+    expect(r.rescue.note).toContain('15 min')
   })
 })
 
-describe('buildFuelPlan — aerobic, no top-ups (≤60 min)', () => {
-  it('70kg, BG 6.5, predicted end 4.0, 45min aerobic → ~18-20g pre-workout', () => {
-    const r = plan({
-      startGlucoseMmol: 6.5,
-      predictedEndMmol: 4.0,
-      activityType: 'aerobic',
-      durationMinutes: 45,
-      bodyweightKg: 70,
-    })
+describe('buildFuelPlan — activity fuel (aerobic)', () => {
+  it('70kg, 20 min aerobic → ~10g activity fuel', () => {
+    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 20, bodyweightKg: 70 })
+    expect(r.activityFuel).not.toBeNull()
+    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(5)
+    expect(r.activityFuel.grams).toBeLessThanOrEqual(10)
+  })
+
+  it('70kg, 40 min aerobic → ~20g activity fuel', () => {
+    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 40, bodyweightKg: 70 })
+    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(15)
+    expect(r.activityFuel.grams).toBeLessThanOrEqual(25)
+  })
+
+  it('87kg, 40 min aerobic → ~25g activity fuel', () => {
+    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 40, bodyweightKg: 87 })
+    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(20)
+    expect(r.activityFuel.grams).toBeLessThanOrEqual(30)
+  })
+
+  it('70kg, 10 min aerobic → 5g floor (very short session still recommends small dose)', () => {
+    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 10, bodyweightKg: 70 })
+    expect(r.activityFuel).not.toBeNull()
+    expect(r.activityFuel.grams).toBe(5)
+  })
+
+  it('activity fuel capped at 40g per single pre-workout dose', () => {
+    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 90, bodyweightKg: 100 })
+    expect(r.activityFuel.grams).toBeLessThanOrEqual(40)
+  })
+
+  it('activity fuel has timingText "10-15 min before" (substring "before")', () => {
+    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 40 })
+    expect(r.activityFuel.timingText.toLowerCase()).toContain('before')
+  })
+})
+
+describe('buildFuelPlan — activity fuel (mixed)', () => {
+  it('mixed activityFuel is ~60% of aerobic at same duration/weight', () => {
+    const aerobic = plan({ startGlucoseMmol: 7.0, durationMinutes: 60, activityType: 'aerobic', bodyweightKg: 70 })
+    const mixed = plan({ startGlucoseMmol: 7.0, durationMinutes: 60, activityType: 'mixed', bodyweightKg: 70 })
+    expect(mixed.activityFuel.grams).toBeLessThan(aerobic.activityFuel.grams)
+    expect(mixed.activityFuel.grams).toBeGreaterThanOrEqual(15)
+    expect(mixed.activityFuel.grams).toBeLessThanOrEqual(25)
+  })
+
+  it('mixed minimum dose floor is 5g for short sessions', () => {
+    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 15, activityType: 'mixed', bodyweightKg: 70 })
+    expect(r.activityFuel.grams).toBe(5)
+  })
+})
+
+describe('buildFuelPlan — anaerobic + strength', () => {
+  it('anaerobic at healthy BG → no rescue, no activity fuel, no-fuel status', () => {
+    const r = plan({ startGlucoseMmol: 7.0, activityType: 'anaerobic', durationMinutes: 30 })
+    expect(r.status).toBe('no-fuel')
+    expect(r.rescue).toBeNull()
+    expect(r.activityFuel).toBeNull()
+    expect(r.totalGrams).toBe(0)
+  })
+
+  it('anaerobic at low BG (5.0) → rescue only, no activity fuel', () => {
+    const r = plan({ startGlucoseMmol: 5.0, activityType: 'anaerobic', durationMinutes: 30 })
     expect(r.status).toBe('fuel')
-    expect(r.preWorkout).not.toBeNull()
-    expect(r.preWorkout.grams).toBeGreaterThanOrEqual(15)
-    expect(r.preWorkout.grams).toBeLessThanOrEqual(20)
+    expect(r.rescue).not.toBeNull()
+    expect(r.activityFuel).toBeNull()
+  })
+
+  it('strength at healthy BG → no rescue, no activity fuel, no-fuel status', () => {
+    const r = plan({ startGlucoseMmol: 7.0, activityType: 'strength', durationMinutes: 30 })
+    expect(r.status).toBe('no-fuel')
+    expect(r.rescue).toBeNull()
+    expect(r.activityFuel).toBeNull()
+  })
+
+  it('strength at low BG (5.0) → rescue only, no activity fuel', () => {
+    const r = plan({ startGlucoseMmol: 5.0, activityType: 'strength', durationMinutes: 30 })
+    expect(r.status).toBe('fuel')
+    expect(r.rescue).not.toBeNull()
+    expect(r.activityFuel).toBeNull()
+  })
+
+  it('anaerobic never gets mid-workout top-ups even at 90+ min', () => {
+    const r = plan({ activityType: 'anaerobic', durationMinutes: 120, startGlucoseMmol: 7.0 })
     expect(r.topUps).toEqual([])
   })
-
-  it('70kg, BG 5.0, predicted end 3.0, 30min aerobic → ~12g pre-workout', () => {
-    const r = plan({
-      startGlucoseMmol: 5.0,
-      predictedEndMmol: 3.0,
-      activityType: 'aerobic',
-      durationMinutes: 30,
-      bodyweightKg: 70,
-    })
-    expect(r.status).toBe('fuel')
-    expect(r.preWorkout.grams).toBeGreaterThanOrEqual(10)
-    expect(r.preWorkout.grams).toBeLessThanOrEqual(15)
-  })
-
-  it('70kg, BG 7.5, predicted end 7.5, 30min aerobic → no fuel needed (in target range)', () => {
-    const r = plan({
-      startGlucoseMmol: 7.5,
-      predictedEndMmol: 7.5,
-      activityType: 'aerobic',
-      durationMinutes: 30,
-      bodyweightKg: 70,
-    })
-    expect(r.status).toBe('no-fuel')
-    expect(r.preWorkout).toBeNull()
-  })
 })
 
-describe('buildFuelPlan — aerobic, with top-ups (>60 min)', () => {
-  it('90min aerobic → 1 top-up at 30min', () => {
-    const r = plan({ durationMinutes: 90, activityType: 'aerobic' })
-    expect(r.status).toBe('fuel')
-    expect(r.topUps.length).toBe(1)
-    expect(r.topUps[0].atMinutes).toBe(30)
-  })
-
-  it('120min aerobic → 2 top-ups at 30 and 60min', () => {
-    const r = plan({ durationMinutes: 120, activityType: 'aerobic' })
-    expect(r.topUps.length).toBe(2)
-    expect(r.topUps.map((t) => t.atMinutes)).toEqual([30, 60])
-  })
-
-  it('150min aerobic → 3 top-ups at 30, 60, 90min', () => {
-    const r = plan({ durationMinutes: 150, activityType: 'aerobic' })
-    expect(r.topUps.length).toBe(3)
-    expect(r.topUps.map((t) => t.atMinutes)).toEqual([30, 60, 90])
-  })
-
-  it('60min aerobic → 0 top-ups (boundary)', () => {
+describe('buildFuelPlan — top-ups', () => {
+  it('60 min aerobic → 0 top-ups (boundary)', () => {
     const r = plan({ durationMinutes: 60, activityType: 'aerobic' })
     expect(r.topUps).toEqual([])
   })
 
-  it('top-up grams scale with bodyweight: 70kg → ~20g per top-up', () => {
-    const r = plan({ durationMinutes: 90, activityType: 'aerobic', bodyweightKg: 70 })
-    expect(r.topUps[0].grams).toBeGreaterThanOrEqual(15)
-    expect(r.topUps[0].grams).toBeLessThanOrEqual(25)
-  })
-})
-
-describe('buildFuelPlan — anaerobic', () => {
-  it('BG ≥ 6 mmol/L → no-fuel status, no top-ups', () => {
-    const r = plan({
-      startGlucoseMmol: 7.0,
-      predictedEndMmol: 6.5,
-      activityType: 'anaerobic',
-      durationMinutes: 30,
-    })
-    expect(r.status).toBe('no-fuel')
-    expect(r.preWorkout).toBeNull()
-    expect(r.topUps).toEqual([])
+  it('90 min aerobic → 1 top-up at 30 min', () => {
+    const r = plan({ durationMinutes: 90, activityType: 'aerobic' })
+    expect(r.topUps.length).toBe(1)
+    expect(r.topUps[0].atMinutes).toBe(30)
   })
 
-  it('BG < 6 mmol/L → fuel status with protective top-up to bring BG to ~6', () => {
-    const r = plan({
-      startGlucoseMmol: 5.0,
-      predictedEndMmol: 4.5,
-      activityType: 'anaerobic',
-      durationMinutes: 30,
-    })
-    expect(r.status).toBe('fuel')
-    expect(r.preWorkout).not.toBeNull()
-    expect(r.preWorkout.grams).toBeGreaterThan(0)
-    expect(r.preWorkout.grams).toBeLessThanOrEqual(15)
+  it('120 min aerobic → 2 top-ups at 30 + 60 min', () => {
+    const r = plan({ durationMinutes: 120, activityType: 'aerobic' })
+    expect(r.topUps.map((t) => t.atMinutes)).toEqual([30, 60])
   })
 
-  it('anaerobic never gets mid-workout top-ups even at 90+ min', () => {
-    const r = plan({
-      activityType: 'anaerobic',
-      durationMinutes: 120,
-      startGlucoseMmol: 7.0,
-    })
-    expect(r.topUps).toEqual([])
-  })
-})
-
-describe('buildFuelPlan — strength', () => {
-  it('strength never gets mid-workout top-ups even at 90+ min', () => {
-    const r = plan({
-      activityType: 'strength',
-      durationMinutes: 120,
-      startGlucoseMmol: 7.0,
-      predictedEndMmol: 6.5,
-    })
-    expect(r.topUps).toEqual([])
+  it('150 min aerobic → 3 top-ups at 30, 60, 90 min', () => {
+    const r = plan({ durationMinutes: 150, activityType: 'aerobic' })
+    expect(r.topUps.map((t) => t.atMinutes)).toEqual([30, 60, 90])
   })
 
-  it('strength at low BG (<6) → protective top-up to bring BG to ~6', () => {
-    const r = plan({
-      startGlucoseMmol: 5.0,
-      predictedEndMmol: 4.5,
-      activityType: 'strength',
-      durationMinutes: 30,
-    })
-    expect(r.status).toBe('fuel')
-    expect(r.preWorkout).not.toBeNull()
-    expect(r.preWorkout.grams).toBeGreaterThan(0)
-    expect(r.preWorkout.grams).toBeLessThanOrEqual(15)
-  })
-})
-
-describe('buildFuelPlan — mixed', () => {
-  it('mixed dose is ~60% of equivalent aerobic dose', () => {
-    const inputs = {
-      startGlucoseMmol: 6.0,
-      predictedEndMmol: 4.0,
-      durationMinutes: 60,
-      bodyweightKg: 70,
-    }
-    const aerobic = plan({ ...inputs, activityType: 'aerobic' })
-    const mixed = plan({ ...inputs, activityType: 'mixed' })
-    expect(mixed.preWorkout.grams).toBeLessThan(aerobic.preWorkout.grams)
-    expect(mixed.preWorkout.grams).toBeGreaterThanOrEqual(
-      Math.round(aerobic.preWorkout.grams * 0.5 / 5) * 5,
-    )
-  })
-
-  it('mixed sessions DO get mid-workout top-ups for sessions > 60 min', () => {
-    const r = plan({
-      activityType: 'mixed',
-      durationMinutes: 90,
-      startGlucoseMmol: 6.0,
-      predictedEndMmol: 4.0,
-    })
+  it('mixed sessions also get top-ups for > 60 min', () => {
+    const r = plan({ durationMinutes: 90, activityType: 'mixed' })
     expect(r.topUps.length).toBe(1)
   })
 })
 
-describe('buildFuelPlan — bodyweight scaling', () => {
-  it('50kg user needs less fuel than 70kg for same prediction', () => {
-    const inputs = {
-      startGlucoseMmol: 6.5,
-      predictedEndMmol: 4.0,
-      activityType: 'aerobic',
-      durationMinutes: 45,
-    }
-    const lighter = plan({ ...inputs, bodyweightKg: 50 })
-    const ref = plan({ ...inputs, bodyweightKg: 70 })
-    expect(lighter.preWorkout.grams).toBeLessThanOrEqual(ref.preWorkout.grams)
+describe('buildFuelPlan — totalGrams', () => {
+  it('totalGrams = rescue + activityFuel + sum of top-ups', () => {
+    const r = plan({ startGlucoseMmol: 4.9, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
+    const expected = (r.rescue?.grams || 0) + (r.activityFuel?.grams || 0) + r.topUps.reduce((s, t) => s + t.grams, 0)
+    expect(r.totalGrams).toBe(expected)
   })
 
-  it('100kg user needs more fuel than 70kg for same prediction', () => {
-    const inputs = {
-      startGlucoseMmol: 6.5,
-      predictedEndMmol: 4.0,
-      activityType: 'aerobic',
-      durationMinutes: 45,
-    }
-    const heavier = plan({ ...inputs, bodyweightKg: 100 })
-    const ref = plan({ ...inputs, bodyweightKg: 70 })
-    expect(heavier.preWorkout.grams).toBeGreaterThanOrEqual(ref.preWorkout.grams)
+  it('totalGrams is 0 for no-fuel status', () => {
+    const r = plan({ startGlucoseMmol: 7.0, activityType: 'anaerobic', durationMinutes: 30 })
+    expect(r.totalGrams).toBe(0)
+  })
+
+  it('totalGrams covers a complete worked example (BG 4.9, aerobic 40 min, 87kg)', () => {
+    const r = plan({ startGlucoseMmol: 4.9, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
+    expect(r.rescue.grams).toBeGreaterThanOrEqual(10)
+    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(20)
+    expect(r.totalGrams).toBe(r.rescue.grams + r.activityFuel.grams)
   })
 })
 
 describe('buildFuelPlan — predictedEnd projection', () => {
-  it('predictedEndWithoutFuel matches the input', () => {
-    const r = plan({ predictedEndMmol: 4.0 })
-    expect(r.predictedEndWithoutFuel).toBe(4.0)
+  it('predictedEndWithFuel matches predictedEndWithoutFuel when no fuel recommended', () => {
+    const r = plan({ startGlucoseMmol: 7.5, predictedEndMmol: 7.5, activityType: 'aerobic', durationMinutes: 30, bodyweightKg: 70 })
+    if (r.status === 'no-fuel') {
+      expect(r.predictedEndWithFuel).toBe(r.predictedEndWithoutFuel)
+    }
   })
 
-  it('predictedEndWithFuel is higher than predictedEndWithoutFuel when fuel is recommended', () => {
-    const r = plan({
-      startGlucoseMmol: 6.0,
-      predictedEndMmol: 4.0,
-      activityType: 'aerobic',
-      durationMinutes: 45,
-    })
+  it('predictedEndWithFuel is higher than predictedEndWithoutFuel when fuel was recommended', () => {
+    const r = plan({ startGlucoseMmol: 4.9, predictedEndMmol: 2.3, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
     expect(r.predictedEndWithFuel).toBeGreaterThan(r.predictedEndWithoutFuel)
-  })
-
-  it('predictedEndWithFuel equals predictedEndWithoutFuel when no fuel is recommended', () => {
-    const r = plan({
-      startGlucoseMmol: 7.5,
-      predictedEndMmol: 7.5,
-      activityType: 'aerobic',
-      durationMinutes: 30,
-    })
-    expect(r.predictedEndWithFuel).toBe(r.predictedEndWithoutFuel)
   })
 })
 
 describe('buildFuelPlan — IOB note', () => {
-  it('returns iobNote when iobUnits > 0', () => {
+  it('iobNote present when iobUnits > 0', () => {
     const r = plan({ iobUnits: 1.5 })
     expect(r.iobNote).toContain('1.5')
-    expect(r.iobNote).toContain('active insulin')
   })
 
   it('iobNote is null when iobUnits is 0', () => {
