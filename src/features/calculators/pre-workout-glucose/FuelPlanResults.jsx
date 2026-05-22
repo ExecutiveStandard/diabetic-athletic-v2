@@ -45,21 +45,70 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
             </p>
           </>
         ) : (
-          <div className="space-y-3">
-            {fuelPlan.preWorkout && (
-              <p className="text-xl md:text-2xl font-bold text-white">
-                💪 Eat <span className="text-da-cyan">{fuelPlan.preWorkout.grams}g</span> of fast-acting carbs {fuelPlan.preWorkout.timingText}
-              </p>
+          <div className="space-y-4">
+            {/* STEP 1 — Rescue */}
+            {fuelPlan.rescue && (
+              <div>
+                <p className="text-xl md:text-2xl font-bold text-white">
+                  💉 Eat <span className="text-da-cyan">{fuelPlan.rescue.grams}g</span> of fast carbs now
+                </p>
+                <p className="text-white/70 text-sm mt-1">{fuelPlan.rescue.note}</p>
+                <p className="text-white/50 text-xs italic mt-2">
+                  Don't know your insulin ratios yet?{' '}
+                  <Link to="/calculators/magic-ratio" className="text-da-cyan underline">
+                    Use the Magic Ratio Calculator
+                  </Link>{' '}
+                  to find them — they'll personalize this even further.
+                </p>
+              </div>
             )}
-            {fuelPlan.topUps.map((t, i) => (
-              <p key={i} className="text-lg text-white/90">
-                🔁 At {t.atMinutes} min: <span className="text-da-cyan font-bold">{t.grams}g</span> top-up
-              </p>
-            ))}
-            {fuelPlan.preWorkout && (
-              <p className="text-white/60 text-sm italic mt-3">
-                Glucose tabs, juice, dextrose, or sports drink work well. {fuelPlan.topUps.length > 0 && 'Carry your top-ups with you — gels and chews are easier mid-workout.'}
-              </p>
+
+            {/* STEP 2 — Activity fuel */}
+            {fuelPlan.activityFuel && (
+              <div>
+                <p className="text-xl md:text-2xl font-bold text-white">
+                  💪{' '}
+                  {fuelPlan.rescue ? "Once you're in range, eat " : 'Eat '}
+                  <span className="text-da-cyan">{fuelPlan.activityFuel.grams}g</span>
+                  {fuelPlan.rescue ? ' to fuel the workout itself' : ` of fast-acting carbs ${fuelPlan.activityFuel.timingText} to fuel the workout`}
+                </p>
+                <p className="text-white/60 text-sm italic mt-1">
+                  Glucose tabs, juice, dextrose, banana, sports drink — anything that absorbs fast.
+                </p>
+              </div>
+            )}
+
+            {/* STEP 3 — Top-ups during workout */}
+            {fuelPlan.topUps.length > 0 && (
+              <div className="space-y-1">
+                {fuelPlan.topUps.map((t, i) => (
+                  <p key={i} className="text-lg text-white/90">
+                    🔁 At {t.atMinutes} min: <span className="text-da-cyan font-bold">{t.grams}g</span> top-up
+                  </p>
+                ))}
+                <p className="text-white/60 text-sm italic mt-1">
+                  Carry your top-ups with you — gels and chews are easier mid-workout.
+                </p>
+              </div>
+            )}
+
+            {/* TOTAL — only shown when at least one component fired */}
+            {fuelPlan.totalGrams > 0 && (
+              <div className="border-t border-white/10 pt-3 mt-3">
+                <p className="text-white/90 font-bold">
+                  Total carbs for this workout: <span className="text-da-cyan">{fuelPlan.totalGrams}g</span>
+                  {(() => {
+                    const parts = []
+                    if (fuelPlan.rescue) parts.push(`${fuelPlan.rescue.grams}g rescue`)
+                    if (fuelPlan.activityFuel) parts.push(`${fuelPlan.activityFuel.grams}g activity fuel`)
+                    if (fuelPlan.topUps.length > 0) {
+                      const topUpSum = fuelPlan.topUps.reduce((s, t) => s + t.grams, 0)
+                      parts.push(`${topUpSum}g in top-ups`)
+                    }
+                    return parts.length > 1 ? ` (${parts.join(' + ')})` : ''
+                  })()}
+                </p>
+              </div>
             )}
           </div>
         )}
