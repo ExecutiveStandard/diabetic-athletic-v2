@@ -520,14 +520,21 @@ function PreWorkoutGlucoseCalculatorActual() {
             </StepCard>
           )}
 
-          {prediction && fuelPlan && (
-              <FuelPlanResults
-                fuelPlan={fuelPlan}
-                prediction={prediction}
-                glucoseUnit={glucoseUnit}
-                activityType={workoutType}
-              />
-            )}
+          {prediction && fuelPlan ? (
+            <FuelPlanResults
+              fuelPlan={fuelPlan}
+              prediction={prediction}
+              glucoseUnit={glucoseUnit}
+              activityType={workoutType}
+            />
+          ) : (
+            <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan/40 text-center">
+              <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">👇 Almost there</p>
+              <p className="text-white/70 text-base leading-relaxed">
+                Fill in your <strong className="text-white">starting glucose</strong>, <strong className="text-white">activity type and duration</strong>, and <strong className="text-white">body weight</strong> above — your personalized fuel plan will appear here.
+              </p>
+            </div>
+          )}
 
           <div className="text-center pt-4">
             <Button variant="outline" onClick={reset}>Reset</Button>
@@ -544,7 +551,7 @@ function Disclaimer() {
   return (
     <div className="border-l-2 border-da-gold/50 pl-4 py-3 text-xs text-white/50 leading-relaxed mt-12">
       <p className="text-da-gold/80 font-bold uppercase tracking-wider mb-2">⚠️ Educational tool — not medical advice</p>
-      <p>The Pre-Workout Glucose Predictor uses literature-based modeling to estimate likely glucose response to exercise in people with type 1 diabetes. Individual responses vary substantially. Always check your glucose before, during, and after exercise. Always carry fast-acting carbs. Never adjust insulin doses based solely on this tool. Consult your endocrinologist before making changes to your exercise or insulin routine.</p>
+      <p>The Workout Fueling Calculator uses literature-based modeling to estimate likely glucose response to exercise in people with type 1 diabetes. Individual responses vary substantially. Always check your glucose before, during, and after exercise. Always carry fast-acting carbs. Never adjust insulin doses based solely on this tool. Consult your endocrinologist before making changes to your exercise or insulin routine.</p>
     </div>
   )
 }
