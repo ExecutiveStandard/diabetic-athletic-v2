@@ -94,39 +94,101 @@ describe('buildFuelPlan — rescue dose (BG < 6)', () => {
 })
 
 describe('buildFuelPlan — activity fuel (aerobic)', () => {
-  it('70kg, 20 min aerobic → ~10g activity fuel', () => {
-    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 20, bodyweightKg: 70 })
+  it('70kg, 20 min aerobic, predicted end at target → ~10g endurance baseline', () => {
+    // predictedEnd 7.5 makes gap formula return 0, isolating endurance baseline
+    const r = plan({ startGlucoseMmol: 7.5, predictedEndMmol: 7.5, durationMinutes: 20, bodyweightKg: 70 })
     expect(r.activityFuel).not.toBeNull()
     expect(r.activityFuel.grams).toBeGreaterThanOrEqual(5)
     expect(r.activityFuel.grams).toBeLessThanOrEqual(10)
   })
 
-  it('70kg, 40 min aerobic → ~20g activity fuel', () => {
-    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 40, bodyweightKg: 70 })
+  it('70kg, 40 min aerobic, predicted end at target → ~15g endurance baseline', () => {
+    const r = plan({ startGlucoseMmol: 7.5, predictedEndMmol: 7.5, durationMinutes: 40, bodyweightKg: 70 })
+    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(10)
+    expect(r.activityFuel.grams).toBeLessThanOrEqual(20)
+  })
+
+  it('87kg, 40 min aerobic, predicted end at target → ~20g endurance baseline', () => {
+    const r = plan({ startGlucoseMmol: 7.5, predictedEndMmol: 7.5, durationMinutes: 40, bodyweightKg: 87 })
     expect(r.activityFuel.grams).toBeGreaterThanOrEqual(15)
     expect(r.activityFuel.grams).toBeLessThanOrEqual(25)
   })
 
-  it('87kg, 40 min aerobic → ~25g activity fuel', () => {
-    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 40, bodyweightKg: 87 })
-    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(20)
-    expect(r.activityFuel.grams).toBeLessThanOrEqual(30)
-  })
-
-  it('70kg, 10 min aerobic → 5g floor (very short session still recommends small dose)', () => {
-    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 10, bodyweightKg: 70 })
+  it('70kg, 10 min aerobic, predicted end at target → 5g floor', () => {
+    const r = plan({ startGlucoseMmol: 7.5, predictedEndMmol: 7.5, durationMinutes: 10, bodyweightKg: 70 })
     expect(r.activityFuel).not.toBeNull()
     expect(r.activityFuel.grams).toBe(5)
   })
 
-  it('activity fuel capped at 40g per single pre-workout dose', () => {
+  it('activity fuel capped at 60g per single pre-workout dose', () => {
     const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 90, bodyweightKg: 100 })
-    expect(r.activityFuel.grams).toBeLessThanOrEqual(40)
+    expect(r.activityFuel.grams).toBeLessThanOrEqual(60)
   })
 
   it('activity fuel has timingText "10-15 min before" (substring "before")', () => {
     const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 40 })
     expect(r.activityFuel.timingText.toLowerCase()).toContain('before')
+  })
+})
+
+describe('buildFuelPlan — activity fuel scales up when predicted end is below target (gap-aware)', () => {
+  it('88kg, 30 min aerobic, predicted end 1.5 (e.g. high IOB) → ~40g to land at ~7.5', () => {
+    // Reported scenario: BG 11.7, IOB 5.36u, predicted to crash to 1.5
+    // Endurance baseline alone would give ~20g — not enough to recover.
+    // Gap formula: 5 × (7.5 − 1.5) × (88/70) ≈ 37.7g → rounds to 40g.
+    const r = plan({
+      startGlucoseMmol: 11.7,
+      predictedEndMmol: 1.5,
+      activityType: 'aerobic',
+      durationMinutes: 30,
+      bodyweightKg: 88,
+    })
+    expect(r.activityFuel).not.toBeNull()
+    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(35)
+    expect(r.activityFuel.grams).toBeLessThanOrEqual(45)
+  })
+
+  it('normal scenario (no IOB, modest drop) still uses endurance baseline (not over-fueling)', () => {
+    // 70kg, BG 7.0, predicted end 5.0 (modest 2 mmol/L drop from exercise alone)
+    // Endurance: 0.4 × 70 × 0.5 = 14g → 15g
+    // Gap: 5 × (7.5 − 5.0) × 1 = 12.5g → 15g
+    // MAX = 15g (both formulas agree closely; doesn't blow up)
+    const r = plan({
+      startGlucoseMmol: 7.0,
+      predictedEndMmol: 5.0,
+      activityType: 'aerobic',
+      durationMinutes: 30,
+      bodyweightKg: 70,
+    })
+    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(10)
+    expect(r.activityFuel.grams).toBeLessThanOrEqual(20)
+  })
+})
+
+describe('buildFuelPlan — split dose for large activity fuel amounts', () => {
+  it('activity fuel > 25g splits into pre-workout + mid-workout', () => {
+    const r = plan({
+      startGlucoseMmol: 11.7,
+      predictedEndMmol: 1.5,
+      activityType: 'aerobic',
+      durationMinutes: 30,
+      bodyweightKg: 88,
+    })
+    expect(r.activityFuel.split).not.toBeNull()
+    expect(r.activityFuel.split.preWorkoutGrams + r.activityFuel.split.midWorkoutGrams).toBe(r.activityFuel.grams)
+    expect(r.activityFuel.split.midAtMinutes).toBeGreaterThan(0)
+    expect(r.activityFuel.split.midAtMinutes).toBeLessThan(30)
+  })
+
+  it('activity fuel ≤ 25g does not split (single pre-workout dose)', () => {
+    const r = plan({
+      startGlucoseMmol: 7.0,
+      predictedEndMmol: 5.0,
+      activityType: 'aerobic',
+      durationMinutes: 30,
+      bodyweightKg: 70,
+    })
+    expect(r.activityFuel.split).toBeNull()
   })
 })
 
@@ -139,8 +201,9 @@ describe('buildFuelPlan — activity fuel (mixed)', () => {
     expect(mixed.activityFuel.grams).toBeLessThanOrEqual(25)
   })
 
-  it('mixed minimum dose floor is 5g for short sessions', () => {
-    const r = plan({ startGlucoseMmol: 7.0, durationMinutes: 15, activityType: 'mixed', bodyweightKg: 70 })
+  it('mixed minimum dose floor is 5g for short sessions at target', () => {
+    // predictedEnd 7.5 isolates the endurance floor from gap-aware top-up
+    const r = plan({ startGlucoseMmol: 7.5, predictedEndMmol: 7.5, durationMinutes: 15, activityType: 'mixed', bodyweightKg: 70 })
     expect(r.activityFuel.grams).toBe(5)
   })
 })

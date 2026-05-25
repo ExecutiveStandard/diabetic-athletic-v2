@@ -63,8 +63,28 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
               </div>
             )}
 
-            {/* STEP 2 — Activity fuel */}
-            {fuelPlan.activityFuel && (
+            {/* STEP 2 — Activity fuel (split-dose when grams > threshold) */}
+            {fuelPlan.activityFuel && fuelPlan.activityFuel.split && (
+              <div>
+                <p className="text-xl md:text-2xl font-bold text-white">
+                  💪{' '}
+                  {fuelPlan.rescue ? "Once you're in range, fuel your workout: " : 'Fuel your workout: '}
+                  <span className="text-da-cyan">{fuelPlan.activityFuel.grams}g</span> total, split across two doses
+                </p>
+                <ul className="mt-2 space-y-1 text-white/90">
+                  <li>
+                    🥤 <span className="text-da-cyan font-bold">{fuelPlan.activityFuel.split.preWorkoutGrams}g</span> 10–15 min before you start
+                  </li>
+                  <li>
+                    🔁 <span className="text-da-cyan font-bold">{fuelPlan.activityFuel.split.midWorkoutGrams}g</span> at the {fuelPlan.activityFuel.split.midAtMinutes}-min mark of your workout
+                  </li>
+                </ul>
+                <p className="text-white/60 text-sm italic mt-2">
+                  Splitting the dose keeps your BG from spiking pre-workout and gives you sustained fuel through the session. Glucose tabs, gels, sports drink, or chews work well — anything that absorbs fast.
+                </p>
+              </div>
+            )}
+            {fuelPlan.activityFuel && !fuelPlan.activityFuel.split && (
               <div>
                 <p className="text-xl md:text-2xl font-bold text-white">
                   💪{' '}

@@ -11,6 +11,7 @@
 // Tests: ./fuelPlan.test.js
 
 const TARGET_RESCUE_MMOL = 6.5
+const TARGET_END_MMOL = 7.5
 const RESCUE_FLOOR_MMOL = 6.0
 const SAFETY_FLOOR_MMOL = 4.6
 const SAFETY_CEILING_MMOL = 15.0
@@ -19,9 +20,10 @@ const REFERENCE_WEIGHT_KG = 70
 const RESCUE_MIN_G = 5
 const RESCUE_MAX_G = 25
 const ACTIVITY_FUEL_MIN_G = 5
-const ACTIVITY_FUEL_MAX_G = 40
+const ACTIVITY_FUEL_MAX_G = 60   // bumped from 40 to allow gap-closing in high-IOB scenarios
 const TOP_UP_MIN_G = 10
 const TOP_UP_MAX_G = 40
+const SPLIT_DOSE_THRESHOLD_G = 25  // amounts above this get split pre/mid-workout
 
 const ACTIVITY_FUEL_PER_KG_PER_HOUR = 0.4
 const MIXED_ACTIVITY_MULTIPLIER = 0.6
@@ -52,16 +54,40 @@ function buildRescue(startGlucoseMmol, weightKg) {
   }
 }
 
-function buildActivityFuel(activityType, durationMinutes, weightKg) {
+function buildActivityFuel(activityType, durationMinutes, weightKg, predictedEndMmol) {
   if (activityType === 'anaerobic' || activityType === 'strength') return null
   if (!durationMinutes || durationMinutes <= 0) return null
 
-  const base = ACTIVITY_FUEL_PER_KG_PER_HOUR * weightKg * (durationMinutes / 60)
+  // Two formulas — use whichever is larger:
+  // 1. Endurance baseline (covers normal exercise glucose burn)
+  const enduranceBase = ACTIVITY_FUEL_PER_KG_PER_HOUR * weightKg * (durationMinutes / 60)
+  // 2. Top-up to target END glucose (handles high-IOB / large-predicted-drop scenarios)
+  const gapBase = gramsToCloseGap(TARGET_END_MMOL - predictedEndMmol, weightKg)
+  const base = Math.max(enduranceBase, gapBase)
+
   const adjusted = activityType === 'mixed' ? base * MIXED_ACTIVITY_MULTIPLIER : base
-  const grams = clamp(roundTo5(adjusted), ACTIVITY_FUEL_MIN_G, ACTIVITY_FUEL_MAX_G)
+  const totalGrams = clamp(roundTo5(adjusted), ACTIVITY_FUEL_MIN_G, ACTIVITY_FUEL_MAX_G)
+
+  // Split-dose for larger amounts — clinically safer than dosing 30g+ at once
+  if (totalGrams > SPLIT_DOSE_THRESHOLD_G && durationMinutes >= 20) {
+    const prePart = roundTo5(totalGrams / 2)
+    const midPart = totalGrams - prePart
+    const midAtMin = Math.round(durationMinutes / 2 / 5) * 5  // round to nearest 5 min
+    return {
+      grams: totalGrams,
+      timingText: '10–15 min before you start',
+      split: {
+        preWorkoutGrams: prePart,
+        midWorkoutGrams: midPart,
+        midAtMinutes: midAtMin,
+      },
+    }
+  }
+
   return {
-    grams,
+    grams: totalGrams,
     timingText: '10–15 min before you start',
+    split: null,
   }
 }
 
@@ -133,7 +159,7 @@ export function buildFuelPlan({
   }
 
   const rescue = buildRescue(startGlucoseMmol, bodyweightKg)
-  const activityFuel = buildActivityFuel(activityType, durationMinutes, bodyweightKg)
+  const activityFuel = buildActivityFuel(activityType, durationMinutes, bodyweightKg, predictedEndMmol)
   const topUps = buildTopUps(durationMinutes, bodyweightKg, activityType)
   const totalGrams = computeTotal(rescue, activityFuel, topUps)
 
