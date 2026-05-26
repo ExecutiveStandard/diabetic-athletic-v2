@@ -54,7 +54,7 @@ function buildRescue(startGlucoseMmol, weightKg) {
   const grams = clamp(roundTo5(raw), RESCUE_MIN_G, RESCUE_MAX_G)
   return {
     grams,
-    note: `Recheck in 15 min. Wait until you're at 6.5 mmol/L or higher before starting.`,
+    note: `Recheck in 15 min. Wait until you're at 6.5 mmol/L (117 mg/dL) or higher before starting.`,
   }
 }
 
@@ -72,9 +72,12 @@ function buildActivityFuel(activityType, durationMinutes, weightKg, predictedEnd
   const adjusted = activityType === 'mixed' ? base * MIXED_ACTIVITY_MULTIPLIER : base
   const totalGrams = clamp(roundTo5(adjusted), ACTIVITY_FUEL_MIN_G, ACTIVITY_FUEL_MAX_G)
 
-  // Split-dose for larger amounts — clinically safer than dosing 30g+ at once
+  // Split-dose for larger amounts — primary pre-workout dose + smaller on-hand
+  // contingency. 60/40 split favors the primary dose (the one that does the
+  // real work), keeping the contingency as a smaller safety net the user can
+  // tap into if they actually trend low mid-workout.
   if (totalGrams > SPLIT_DOSE_THRESHOLD_G && durationMinutes >= 20) {
-    const prePart = roundTo5(totalGrams / 2)
+    const prePart = roundTo5(totalGrams * 0.6)
     const midPart = totalGrams - prePart
     const midAtMin = Math.round(durationMinutes / 2 / 5) * 5  // round to nearest 5 min
     return {
@@ -145,7 +148,7 @@ export function buildFuelPlan({
       iobNote,
       iobUnits: iobUnits || 0,
       warning:
-        "Treat the hypo first. Your BG is below 3.9 mmol/L. Eat 20g of fast-acting carbs, wait 15 minutes, then recheck. Begin exercise only once your BG is above 5 mmol/L and you feel stable.",
+        "Treat the hypo first. Your BG is below 3.9 mmol/L (70 mg/dL). Eat 20g of fast-acting carbs, wait 15 minutes, then recheck. Begin exercise only once your BG is above 5 mmol/L (90 mg/dL) and you feel stable.",
     }
   }
 
@@ -165,7 +168,7 @@ export function buildFuelPlan({
       iobNote,
       iobUnits: iobUnits || 0,
       warning:
-        "Eat a small protective snack before starting. Your BG is in the caution zone (3.9–5.0 mmol/L). Eat 15–20g of fast-acting carbs, wait 15 minutes for your BG to climb above 5.0 mmol/L, then re-enter your new BG here for a full fuel plan. Approach aerobic work with extra care today.",
+        "Eat a small protective snack before starting. Your BG is in the caution zone (3.9–5.0 mmol/L / 70–90 mg/dL). Eat 15–20g of fast-acting carbs, wait 15 minutes for your BG to climb above 5.0 mmol/L (90 mg/dL), then re-enter your new BG here for a full fuel plan. Approach aerobic work with extra care today.",
     }
   }
 
@@ -182,7 +185,7 @@ export function buildFuelPlan({
       iobNote,
       iobUnits: iobUnits || 0,
       warning:
-        'Check for ketones before starting. Your BG is above 14 mmol/L, the threshold where exercise risks worsening hyperglycemia. If ketones are present, follow your diabetes team\'s guidance — don\'t exercise until cleared. If absent, keep this session light (low intensity only) and recheck BG mid-session.',
+        'Check for ketones before starting. Your BG is above 14 mmol/L (252 mg/dL), the threshold where exercise risks worsening hyperglycemia. If ketones are present, follow your diabetes team\'s guidance — don\'t exercise until cleared. If absent, keep this session light (low intensity only) and recheck BG mid-session.',
     }
   }
 

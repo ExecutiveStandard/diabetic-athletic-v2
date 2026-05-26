@@ -195,6 +195,17 @@ describe('buildFuelPlan — split dose for large activity fuel amounts', () => {
     expect(r.activityFuel.split.midAtMinutes).toBeLessThan(30)
   })
 
+  it('split favors the pre-workout dose (60/40 ratio)', () => {
+    const r = plan({
+      startGlucoseMmol: 11.7,
+      predictedEndMmol: 1.5,
+      activityType: 'aerobic',
+      durationMinutes: 30,
+      bodyweightKg: 88,
+    })
+    expect(r.activityFuel.split.preWorkoutGrams).toBeGreaterThan(r.activityFuel.split.midWorkoutGrams)
+  })
+
   it('activity fuel ≤ 25g does not split (single pre-workout dose)', () => {
     const r = plan({
       startGlucoseMmol: 7.0,

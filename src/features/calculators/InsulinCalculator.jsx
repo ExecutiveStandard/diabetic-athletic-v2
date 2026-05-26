@@ -466,12 +466,14 @@ function InsulinCalculatorActual() {
               />
             </div>
 
-            {/* Show system-calculated ratios */}
+            {/* Show system-calculated ratios — dual-unit display */}
             <ResultBox
               label="Insulin Sensitivity Factor (ISF)"
-              value={fmt(systemISF)}
-              suffix={bgUnit}
-              subtitle="One unit of insulin lowers BG by this amount"
+              value={bgUnit === 'mg/dL'
+                ? `${fmt(systemISF)} mg/dL  /  ${(systemISF / 18).toFixed(1)} mmol/L`
+                : `${(systemISF * 18).toFixed(0)} mg/dL  /  ${fmt(systemISF)} mmol/L`}
+              suffix="per unit"
+              subtitle="One unit of insulin lowers your BG by this amount"
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -685,10 +687,14 @@ function InsulinCalculatorActual() {
 
             <div>
               <div className="text-xs uppercase tracking-wider font-bold text-white/60 mb-2">
-                Insulin Sensitivity Factor ({bgUnit} per unit)
+                Insulin Sensitivity Factor (per unit)
               </div>
               <div className="px-4 py-3 bg-da-darker/60 border border-white/10 rounded-md text-white/90 font-mono text-sm">
-                {activeISF > 0 ? activeISF.toFixed(2) : '—'} {bgUnit} / unit
+                {activeISF > 0
+                  ? (bgUnit === 'mg/dL'
+                      ? `${activeISF.toFixed(0)} mg/dL  /  ${(activeISF / 18).toFixed(1)} mmol/L per unit`
+                      : `${(activeISF * 18).toFixed(0)} mg/dL  /  ${activeISF.toFixed(1)} mmol/L per unit`)
+                  : '— / unit'}
               </div>
               <p className="text-white/40 text-xs mt-2">
                 Auto-calculated from your TDD and insulin type.
