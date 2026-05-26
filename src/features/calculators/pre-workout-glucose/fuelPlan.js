@@ -147,6 +147,7 @@ export function buildFuelPlan({
       predictedEndWithFuel: predictedEndMmol,
       iobNote,
       iobUnits: iobUnits || 0,
+      startGlucoseMmol,
       warning:
         "Treat the hypo first. Your BG is below 3.9 mmol/L (70 mg/dL). Eat 20g of fast-acting carbs, wait 15 minutes, then recheck. Begin exercise only once your BG is above 5 mmol/L (90 mg/dL) and you feel stable.",
     }
@@ -167,6 +168,7 @@ export function buildFuelPlan({
       predictedEndWithFuel: predictedEndMmol,
       iobNote,
       iobUnits: iobUnits || 0,
+      startGlucoseMmol,
       warning:
         "Eat a small protective snack before starting. Your BG is in the caution zone (3.9–5.0 mmol/L / 70–90 mg/dL). Eat 15–20g of fast-acting carbs, wait 15 minutes for your BG to climb above 5.0 mmol/L (90 mg/dL), then re-enter your new BG here for a full fuel plan. Approach aerobic work with extra care today.",
     }
@@ -184,6 +186,7 @@ export function buildFuelPlan({
       predictedEndWithFuel: predictedEndMmol,
       iobNote,
       iobUnits: iobUnits || 0,
+      startGlucoseMmol,
       warning:
         'Check for ketones before starting. Your BG is above 14 mmol/L (252 mg/dL), the threshold where exercise risks worsening hyperglycemia. If ketones are present, follow your diabetes team\'s guidance — don\'t exercise until cleared. If absent, keep this session light (low intensity only) and recheck BG mid-session.',
     }
@@ -212,6 +215,7 @@ export function buildFuelPlan({
       predictedEndWithFuel,
       iobNote,
       iobUnits: iobUnits || 0,
+      startGlucoseMmol,
       warning: null,
     }
   }

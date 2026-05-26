@@ -64,6 +64,21 @@ function dominantBreakdownItem(breakdown) {
   return breakdown.reduce((max, item) => Math.abs(item.delta) > Math.abs(max.delta) ? item : max, breakdown[0])
 }
 
+// High-risk-start scenario: lower-end BG + substantial IOB + aerobic/mixed
+// activity. The user can still proceed (and the fuel plan is calibrated)
+// but a smarter call may exist — delay until IOB drops, or switch to
+// anaerobic/strength which raises BG instead. Surfaces the kind of
+// strategic coaching the audience won't find elsewhere.
+//
+// Thresholds align with the brand's own exercise guide:
+// - Lower-end BG = below 8 mmol/L (the "near target" band for aerobic risk)
+// - Significant IOB = 2+ units (enough to amplify the exercise drop)
+function isHighRiskAerobicStart(fuelPlan, activityType) {
+  if (activityType !== 'aerobic' && activityType !== 'mixed') return false
+  if (fuelPlan.status !== 'fuel') return false  // skip if no fuel needed anyway
+  return (fuelPlan.startGlucoseMmol < 8.0) && ((fuelPlan.iobUnits || 0) >= 2)
+}
+
 export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, activityType }) {
   // Show both units side-by-side in every BG display, regardless of which
   // unit the user selected for input. UK + South Africa + US audience.
@@ -99,10 +114,46 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
   const expectation = buildExpectationCopy(fuelPlan, activityType)
   const dominant = dominantBreakdownItem(prediction.breakdown)
   const dominantDirection = dominant?.delta < 0 ? 'pulling your BG down' : dominant?.delta > 0 ? 'pushing your BG up' : 'a small influence'
+  const highRiskAerobic = isHighRiskAerobicStart(fuelPlan, activityType)
 
   // Normal output — fuel or no-fuel
   return (
     <div className="space-y-4">
+      {/* STRATEGIC COACHING — appears above the fuel plan when the start
+          conditions are high-risk: low-end BG + significant IOB + aerobic.
+          Presents smarter alternatives before showing the fuel numbers. */}
+      {highRiskAerobic && (
+        <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-gold">
+          <p className="text-da-gold uppercase tracking-wider text-xs font-bold mb-3">🎯 Coach's strategic note — consider these alternatives first</p>
+          <p className="text-white/85 text-sm md:text-base leading-relaxed mb-4">
+            You're starting at <strong className="text-white">{dual(fuelPlan.startGlucoseMmol)}</strong> with <strong className="text-white">{fmtIob(fuelPlan.iobUnits)}u of active insulin</strong> going into a {activityType} session. Aerobic exercise pulls glucose down AND that active insulin amplifies the drop — a textbook setup for a tough mid-workout low. The fuel plan below is calibrated for this scenario, but a smarter call may exist:
+          </p>
+          <div className="space-y-3 text-sm md:text-base">
+            <div>
+              <p className="text-da-cyan font-bold mb-1">Option 1 — Delay 1–2 hours</p>
+              <p className="text-white/75 leading-relaxed">
+                Rapid-acting insulin has a ~3–4 hour duration. Waiting 1–2 hours roughly halves your IOB, making the same workout meaningfully safer. If your schedule allows, this is the cleanest path.
+              </p>
+            </div>
+            <div>
+              <p className="text-da-cyan font-bold mb-1">Option 2 — Switch to strength or anaerobic training today</p>
+              <p className="text-white/75 leading-relaxed">
+                Strength and anaerobic sessions trigger counter-regulatory hormones (cortisol, adrenaline, growth hormone) that push glucose <em>up</em>. Your existing IOB becomes an asset that prevents the spike — instead of a risk that drives you low. You still train, just smarter for today's conditions.
+              </p>
+            </div>
+            <div>
+              <p className="text-da-cyan font-bold mb-1">Option 3 — Proceed with the fuel plan below</p>
+              <p className="text-white/75 leading-relaxed">
+                If neither alternative works today, the fuel plan is dialled for your inputs. Watch your CGM closely — the contingency dose is more likely to be needed in this scenario than usual, and follow the decision criteria carefully.
+              </p>
+            </div>
+          </div>
+          <p className="text-white/50 italic text-xs mt-4">
+            Reading conditions and adjusting the plan — instead of forcing the plan through bad conditions — is what separates athletic glucose management from reactive damage control.
+          </p>
+        </div>
+      )}
+
       {/* HERO — Your Fuel Plan */}
       <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan">
         <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Your Fuel Plan</p>
