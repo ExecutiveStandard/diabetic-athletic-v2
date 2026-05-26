@@ -1,6 +1,62 @@
 import { Link } from 'react-router-dom'
 import { formatGlucose, mmolToMgdl } from './units'
 
+const IOB_SIGNIFICANT_THRESHOLD = 1.0   // units above which we call IOB a "dominant driver"
+
+function fmtIob(n) {
+  return Number(n).toFixed(1).replace(/\.0$/, '')
+}
+
+// Returns the "What to expect during your workout" narrative based on the
+// fuel plan + activity type. Different content for different scenarios.
+function buildExpectationCopy(fuelPlan, activityType) {
+  const iobUnits = fuelPlan.iobUnits || 0
+  const iobSignificant = iobUnits >= IOB_SIGNIFICANT_THRESHOLD
+
+  if (activityType === 'aerobic' || activityType === 'mixed') {
+    const intro = activityType === 'aerobic'
+      ? 'Aerobic exercise pulls glucose out of your bloodstream over the course of your session.'
+      : 'Mixed sessions blend the BG-lowering effect of aerobic work with the BG-raising effect of high-intensity bursts — net direction is usually downward but less predictable than pure aerobic.'
+
+    const iobLine = iobSignificant
+      ? ` Your active insulin (${fmtIob(iobUnits)}u) amplifies that drop substantially — it's the dominant variable in your fuel plan today.`
+      : ''
+
+    return {
+      emoji: '📉',
+      title: 'What to expect during your workout',
+      paragraphs: [
+        `${intro}${iobLine} Expect your BG to fall fastest in the first 15–25 minutes, then taper as your body's counter-regulatory hormones (glucagon, cortisol, adrenaline) start defending against the drop. By the end of your session you should land in the 7–8 mmol/L window.`,
+        'Your pre-workout fuel does most of the work — trust the curve.',
+      ],
+    }
+  }
+
+  if (activityType === 'anaerobic' || activityType === 'strength') {
+    const intro = activityType === 'anaerobic'
+      ? 'Anaerobic work generates lactate plus a cortisol and adrenaline spike.'
+      : 'Strength training stimulates a counter-regulatory hormone response (cortisol, growth hormone, catecholamines).'
+
+    return {
+      emoji: '📈',
+      title: 'What to expect during your workout',
+      paragraphs: [
+        `${intro} These hormones push BG up, not down. You may see your glucose rise during and immediately after the session.`,
+        'Then 1–4 hours after you finish, your BG may drop as the spike subsides and glycogen replenishment kicks in. Watch for needing correction insulin in the cool-down window, and watch for delayed lows later.',
+      ],
+    }
+  }
+
+  return null
+}
+
+// Picks the dominant variable from the prediction breakdown — the item
+// with the largest absolute glucose delta. Used to lead the "Why" narrative.
+function dominantBreakdownItem(breakdown) {
+  if (!breakdown || breakdown.length === 0) return null
+  return breakdown.reduce((max, item) => Math.abs(item.delta) > Math.abs(max.delta) ? item : max, breakdown[0])
+}
+
 export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, activityType }) {
   const display = (mmol) =>
     glucoseUnit === 'mmol'
@@ -33,6 +89,10 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
       </div>
     )
   }
+
+  const expectation = buildExpectationCopy(fuelPlan, activityType)
+  const dominant = dominantBreakdownItem(prediction.breakdown)
+  const dominantDirection = dominant?.delta < 0 ? 'pulling your BG down' : dominant?.delta > 0 ? 'pushing your BG up' : 'a small influence'
 
   // Normal output — fuel or no-fuel
   return (
@@ -79,18 +139,18 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
                 <p className="text-xl md:text-2xl font-bold text-white">
                   💪{' '}
                   {fuelPlan.rescue ? "Once you're in range, fuel your workout: " : 'Fuel your workout: '}
-                  <span className="text-da-cyan">{fuelPlan.activityFuel.grams}g</span> total, split across two doses
+                  <span className="text-da-cyan">{fuelPlan.activityFuel.grams}g</span> total
                 </p>
                 <ul className="mt-2 space-y-1 text-white/90">
                   <li>
-                    🥤 <span className="text-da-cyan font-bold">{fuelPlan.activityFuel.split.preWorkoutGrams}g</span> 10–15 min before you start
+                    🥤 <span className="text-da-cyan font-bold">{fuelPlan.activityFuel.split.preWorkoutGrams}g</span> 10–15 min before you start <span className="text-white/50">— the primary dose</span>
                   </li>
                   <li>
-                    🔁 <span className="text-da-cyan font-bold">{fuelPlan.activityFuel.split.midWorkoutGrams}g</span> at the {fuelPlan.activityFuel.split.midAtMinutes}-min mark of your workout
+                    🔁 <span className="text-da-cyan font-bold">{fuelPlan.activityFuel.split.midWorkoutGrams}g</span> at the {fuelPlan.activityFuel.split.midAtMinutes}-min mark <span className="text-white/50">— optional safety dose; have on hand, take only if you start trending below target</span>
                   </li>
                 </ul>
                 <p className="text-white/60 text-sm italic mt-2">
-                  Splitting the dose keeps your BG from spiking pre-workout and gives you sustained fuel through the session. Glucose tabs, gels, sports drink, or chews work well — anything that absorbs fast.
+                  The split keeps your BG from spiking pre-workout and gives you a safety dose for sustained fuel through the session. Glucose tabs, gels, sports drink, or chews work well — anything that absorbs fast.
                 </p>
               </div>
             )}
@@ -108,16 +168,17 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
               </div>
             )}
 
-            {/* STEP 3 — Top-ups during workout */}
+            {/* STEP 3 — Top-ups during workout (reframed as optional safety) */}
             {fuelPlan.topUps.length > 0 && (
               <div className="space-y-1">
+                <p className="text-white/70 text-sm font-semibold uppercase tracking-wider mt-2">Optional safety top-ups (have on hand, take only if trending low)</p>
                 {fuelPlan.topUps.map((t, i) => (
                   <p key={i} className="text-lg text-white/90">
-                    🔁 At {t.atMinutes} min: <span className="text-da-cyan font-bold">{t.grams}g</span> top-up
+                    🔁 At {t.atMinutes} min: <span className="text-da-cyan font-bold">{t.grams}g</span>
                   </p>
                 ))}
                 <p className="text-white/60 text-sm italic mt-1">
-                  Carry your top-ups with you — gels and chews are easier mid-workout.
+                  Carry these with you — gels and chews are easier mid-workout. You may not need them; your pre-workout fuel is the primary plan.
                 </p>
               </div>
             )}
@@ -133,7 +194,7 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
                     if (fuelPlan.activityFuel) parts.push(`${fuelPlan.activityFuel.grams}g activity fuel`)
                     if (fuelPlan.topUps.length > 0) {
                       const topUpSum = fuelPlan.topUps.reduce((s, t) => s + t.grams, 0)
-                      parts.push(`${topUpSum}g in top-ups`)
+                      parts.push(`${topUpSum}g optional top-ups`)
                     }
                     return parts.length > 1 ? ` (${parts.join(' + ')})` : ''
                   })()}
@@ -143,6 +204,18 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
           </div>
         )}
       </div>
+
+      {/* WHAT TO EXPECT — narrative coaching block */}
+      {expectation && fuelPlan.status === 'fuel' && (
+        <div className="bg-da-card rounded-2xl p-6 md:p-8">
+          <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">
+            {expectation.emoji} {expectation.title}
+          </p>
+          {expectation.paragraphs.map((para, i) => (
+            <p key={i} className="text-white/80 text-sm md:text-base leading-relaxed mb-3 last:mb-0">{para}</p>
+          ))}
+        </div>
+      )}
 
       {/* Comparison row — only when a fuel plan was actually recommended */}
       {fuelPlan.status === 'fuel' && (
@@ -166,9 +239,14 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
         <p className="text-white/50 italic text-sm px-2">{fuelPlan.iobNote}</p>
       )}
 
-      {/* Why */}
+      {/* Why — narrative lead + supporting bullets */}
       <div className="bg-da-card rounded-2xl p-6 md:p-8">
-        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Why</p>
+        <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">Why this plan</p>
+        {dominant && (
+          <p className="text-white/80 text-sm md:text-base leading-relaxed mb-4">
+            The biggest driver here is <strong className="text-white">{dominant.label}</strong> — {dominantDirection} by an estimated <strong className="text-white">{dominant.delta > 0 ? '+' : ''}{dominant.delta.toFixed(1)} mmol/L</strong>. {dominant.reasoning}. The other factors below fine-tune the prediction from there.
+          </p>
+        )}
         <ul className="space-y-2">
           {prediction.breakdown.map((item, idx) => (
             <li key={idx} className="flex items-start gap-3 text-sm">
@@ -192,6 +270,14 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
             <span className="text-da-gold font-semibold">Hypo-prevention tip:</span> A 10-second all-out sprint at the start of your session — or any time you start drifting low — triggers counter-regulatory hormones that bump your BG up. It's a free, drug-free way to head off a hypo without breaking the workout.
           </p>
         )}
+      </div>
+
+      {/* How to dial this in — testing methodology */}
+      <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-gold/40">
+        <p className="text-da-gold uppercase tracking-wider text-xs font-bold mb-2">🧪 How to dial this in</p>
+        <p className="text-white/80 text-sm md:text-base leading-relaxed">
+          Real-world fuel needs vary person to person. Run this same workout — same fuel, same starting conditions — <strong className="text-white">2–3 times</strong> to learn your body's actual pattern. If you consistently finish above 8 mmol/L, scale the fuel down slightly. If you finish below 7 or feel low, scale up. <strong className="text-white">The number on this page is your starting point, not the final answer.</strong>
+        </p>
       </div>
 
       {/* Post-workout brief */}
