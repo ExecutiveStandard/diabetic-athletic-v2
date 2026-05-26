@@ -345,11 +345,6 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
         <p className="text-white/70">
           Recheck your BG at 20 minutes if you feel low. If you're trending fast in either direction, adjust on the fly — these numbers are calibrated starting points, not commandments.
         </p>
-        {(activityType === 'aerobic' || activityType === 'mixed') && (
-          <p className="text-white/70 mt-3">
-            <span className="text-da-gold font-semibold">Hypo-prevention tip:</span> A 10-second all-out sprint at the start of your session — or any time you start drifting low — triggers counter-regulatory hormones that bump your BG up. It's a free, drug-free way to head off a hypo without breaking the workout.
-          </p>
-        )}
       </div>
 
       {/* How to dial this in — testing methodology */}
