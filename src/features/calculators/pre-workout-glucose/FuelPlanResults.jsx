@@ -171,9 +171,14 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
                       <strong className="text-da-cyan">Below {dual(5.0)}</strong> — take the full {fuelPlan.activityFuel.split.midWorkoutGrams}g now <strong className="text-white">AND pause your workout</strong> until your CGM arrow trends up or you're back above {dual(6.0)}.
                     </li>
                     <li>
-                      <strong className="text-da-cyan">No CGM?</strong> If you feel any low symptoms (shaky, sweaty, lightheaded), take 10–15g of carbs <strong className="text-white">AND stop your workout</strong> until you feel stable and your BG is back above {dual(6.0)}.
+                      <strong className="text-da-cyan">No CGM?</strong> If you feel any low symptoms (shaky, sweaty, lightheaded), take 15–25g of carbs <strong className="text-white">AND stop or pause your workout</strong> until you feel stable and your BG is back above {dual(6.0)}.
                     </li>
                   </ul>
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <p className="text-xs text-white/60 leading-relaxed">
+                      <strong className="text-da-gold">📝 Coach's note on dose sizing:</strong> A standard hypo at rest is typically treated with <strong className="text-white">10–15g</strong> of fast-acting carbs. But during an aerobic workout, your muscles are still burning glucose — so a mid-exercise low needs more (<strong className="text-white">15–25g</strong>) to treat the hypo <em>and</em> fuel continued activity. If symptoms are severe or you don't feel safe continuing, stop the session entirely, treat as a standard hypo (10–15g), and plan to train another day. If you recover quickly and want to finish, take the higher end (20–25g) so you have enough fuel to complete the workout.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
