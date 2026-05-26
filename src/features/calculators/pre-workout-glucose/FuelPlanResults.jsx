@@ -64,19 +64,41 @@ function dominantBreakdownItem(breakdown) {
   return breakdown.reduce((max, item) => Math.abs(item.delta) > Math.abs(max.delta) ? item : max, breakdown[0])
 }
 
-// High-risk-start scenario: lower-end BG + substantial IOB + aerobic/mixed
-// activity. The user can still proceed (and the fuel plan is calibrated)
-// but a smarter call may exist — delay until IOB drops, or switch to
-// anaerobic/strength which raises BG instead. Surfaces the kind of
-// strategic coaching the audience won't find elsewhere.
+// Affirming coaching for anaerobic / strength when start conditions would
+// have been risky for aerobic. Rewards the user for picking the safer
+// activity type today and gives them confidence in the choice.
+function shouldShowSmartChoiceNote(fuelPlan, activityType) {
+  if (activityType !== 'anaerobic' && activityType !== 'strength') return false
+  const iob = fuelPlan.iobUnits || 0
+  const startBG = fuelPlan.startGlucoseMmol
+  // Same conditions that would have triggered the aerobic soft/strong warning
+  return startBG < 8.0 && iob >= 2
+}
+
+// Two-tier strategic coaching for aerobic / mixed start conditions.
 //
-// Thresholds align with the brand's own exercise guide:
-// - Lower-end BG = below 8 mmol/L (the "near target" band for aerobic risk)
-// - Significant IOB = 2+ units (enough to amplify the exercise drop)
-function isHighRiskAerobicStart(fuelPlan, activityType) {
-  if (activityType !== 'aerobic' && activityType !== 'mixed') return false
-  if (fuelPlan.status !== 'fuel') return false  // skip if no fuel needed anyway
-  return (fuelPlan.startGlucoseMmol < 8.0) && ((fuelPlan.iobUnits || 0) >= 2)
+// STRONG (red, firm "don't do this aerobic today"): IOB alone would crash
+//   the user before exercise even factors in. Heuristic: 1 unit of insulin
+//   ≈ 1 mmol/L drop for an average adult T1D ISF (literature: 0.8-1.5
+//   mmol/L per unit). If startBG minus iobUnits*1 lands at or below
+//   4 mmol/L, the user is heading toward hypo from the IOB alone.
+//
+// SOFT (gold, "consider alternatives first"): start conditions are
+//   sub-optimal but not catastrophic — BG < 8, IOB >= 2u, on top of
+//   aerobic/mixed.
+//
+// Returns 'strong' | 'soft' | null. Mutually exclusive.
+function getStrategicRiskLevel(fuelPlan, activityType) {
+  if (activityType !== 'aerobic' && activityType !== 'mixed') return null
+  if (fuelPlan.status !== 'fuel') return null
+
+  const iob = fuelPlan.iobUnits || 0
+  const startBG = fuelPlan.startGlucoseMmol
+  const iobImpliedEnd = startBG - (iob * 1.0)
+
+  if (iobImpliedEnd <= 4.0) return 'strong'
+  if (startBG < 8.0 && iob >= 2) return 'soft'
+  return null
 }
 
 export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, activityType }) {
@@ -96,6 +118,33 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
       'high-bg-warning': '⚠️ Check for ketones before starting',
     }[fuelPlan.status]
 
+    // Activity-aware supplementary note for high-BG (>14 mmol/L).
+    // Aerobic at low intensity can actually help bring BG down via
+    // muscle glucose uptake, while anaerobic / strength will push it
+    // higher via the cortisol spike. The advice differs significantly.
+    let highBgActivityNote = null
+    if (fuelPlan.status === 'high-bg-warning') {
+      if (activityType === 'aerobic') {
+        highBgActivityNote = (
+          <p className="text-white/80 text-sm leading-relaxed">
+            <strong className="text-da-cyan">For aerobic specifically:</strong> if your ketones are clear, a low-intensity aerobic session (think easy walk or gentle cycle) can actually help bring your BG down via increased muscle glucose uptake. Keep the intensity LOW — heart rate Zone 1–2 max — and monitor closely. Don't push into harder zones until your BG is back in range.
+          </p>
+        )
+      } else if (activityType === 'anaerobic' || activityType === 'strength') {
+        highBgActivityNote = (
+          <p className="text-white/80 text-sm leading-relaxed">
+            <strong className="text-red-300">For {activityType} specifically:</strong> high-intensity work will push your BG even higher via the cortisol and adrenaline response — exactly the wrong direction. Wait until your BG drops below 14 mmol/L (252 mg/dL) before starting this kind of session. If you must train today, switch to a low-intensity aerobic session instead (and only with no ketones).
+          </p>
+        )
+      } else if (activityType === 'mixed') {
+        highBgActivityNote = (
+          <p className="text-white/80 text-sm leading-relaxed">
+            <strong className="text-da-cyan">For mixed sessions specifically:</strong> the high-intensity portions will push BG higher (wrong direction), while the lower-intensity portions could bring it down slightly. Net effect is unpredictable and risky at this BG level. Best call is to wait until BG drops below 14 mmol/L (252 mg/dL), or switch to a pure low-intensity aerobic session for today.
+          </p>
+        )
+      }
+    }
+
     return (
       <div className="space-y-4">
         <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-yellow-400">
@@ -103,6 +152,11 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
             {headerText}
           </p>
           <p className="text-white text-base leading-relaxed">{fuelPlan.warning}</p>
+          {highBgActivityNote && (
+            <div className="mt-3 pt-3 border-t border-white/10">
+              {highBgActivityNote}
+            </div>
+          )}
         </div>
         {fuelPlan.iobNote && (
           <p className="text-white/50 italic text-sm">{fuelPlan.iobNote}</p>
@@ -114,15 +168,83 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
   const expectation = buildExpectationCopy(fuelPlan, activityType)
   const dominant = dominantBreakdownItem(prediction.breakdown)
   const dominantDirection = dominant?.delta < 0 ? 'pulling your BG down' : dominant?.delta > 0 ? 'pushing your BG up' : 'a small influence'
-  const highRiskAerobic = isHighRiskAerobicStart(fuelPlan, activityType)
+  const riskLevel = getStrategicRiskLevel(fuelPlan, activityType)
+  const iobImpliedEnd = fuelPlan.startGlucoseMmol - (fuelPlan.iobUnits || 0) * 1.0
+  const showSmartChoice = shouldShowSmartChoiceNote(fuelPlan, activityType)
 
   // Normal output — fuel or no-fuel
   return (
     <div className="space-y-4">
-      {/* STRATEGIC COACHING — appears above the fuel plan when the start
-          conditions are high-risk: low-end BG + significant IOB + aerobic.
-          Presents smarter alternatives before showing the fuel numbers. */}
-      {highRiskAerobic && (
+      {/* STRATEGIC COACHING — STRONG tier (red, firm).
+          Fires when IOB alone would push the user below 4 mmol/L.
+          The fuel plan below is shown for transparency but reframed —
+          proceeding is not the recommended path. */}
+      {riskLevel === 'strong' && (
+        <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-red-500">
+          <p className="text-red-400 uppercase tracking-wider text-xs font-bold mb-3">🛑 Strong recommendation: don't do this aerobic session today</p>
+          <p className="text-white/90 text-sm md:text-base leading-relaxed mb-4">
+            You're at <strong className="text-white">{dual(fuelPlan.startGlucoseMmol)}</strong> with <strong className="text-white">{fmtIob(fuelPlan.iobUnits)}u of active insulin</strong> on board. On a typical adult T1D sensitivity (about 1 mmol/L drop per unit), that active insulin alone would pull you toward <strong className="text-red-300">{dual(iobImpliedEnd)}</strong> before exercise even starts. {activityType === 'aerobic' ? 'Aerobic' : 'Mixed'} work on top of that is a high-risk setup for severe hypoglycemia — and the fuel plan can't reliably compensate for an IOB-driven drop of that size.
+          </p>
+          <p className="text-white/90 text-sm md:text-base font-semibold mb-3">The smart calls today, in order of preference:</p>
+          <div className="space-y-3 text-sm md:text-base">
+            <div>
+              <p className="text-da-cyan font-bold mb-1">1. Delay until your IOB drops below ~3u</p>
+              <p className="text-white/75 leading-relaxed">
+                Wait 1.5–2 hours for the active insulin to work down. Same workout, much safer conditions. Cleanest path if your schedule allows.
+              </p>
+            </div>
+            <div>
+              <p className="text-da-cyan font-bold mb-1">2. Switch to strength or anaerobic training</p>
+              <p className="text-white/75 leading-relaxed">
+                Heavy lifting or HIIT triggers counter-regulatory hormones (cortisol, adrenaline) that push BG <em>up</em>. Your IOB becomes an asset that prevents the spike — instead of a threat that drives you low. You still train, just in a smarter form for today.
+              </p>
+            </div>
+            <div>
+              <p className="text-da-cyan font-bold mb-1">3. Skip today's session, walk gently instead</p>
+              <p className="text-white/75 leading-relaxed">
+                A low-intensity walk burns far less glucose than aerobic training. Save the session for when your IOB is in a safer range. Rest days are part of training.
+              </p>
+            </div>
+          </div>
+          <p className="text-white/60 italic text-xs mt-4 border-t border-white/10 pt-3">
+            The fuel plan below is shown for transparency — but please don't read it as endorsement. It exists because users sometimes need information about scenarios they shouldn't be in. If you've considered the options above and still choose to proceed, follow the plan tightly and watch your CGM every few minutes.
+          </p>
+        </div>
+      )}
+
+      {/* AFFIRMING COACHING — fires for anaerobic/strength when the user
+          picks a smart activity type given their start conditions. Inverts
+          the warning tone: "smart choice for today" rather than "consider
+          alternatives." Builds confidence in the user's decision. */}
+      {showSmartChoice && (
+        <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-cyan">
+          <p className="text-da-cyan uppercase tracking-wider text-xs font-bold mb-3">✅ Smart choice for today's conditions</p>
+          <p className="text-white/85 text-sm md:text-base leading-relaxed mb-3">
+            You're at <strong className="text-white">{dual(fuelPlan.startGlucoseMmol)}</strong> with <strong className="text-white">{fmtIob(fuelPlan.iobUnits)}u of active insulin</strong> going into a {activityType === 'strength' ? 'strength' : 'anaerobic'} session. This is a genuinely smart call — heavy lifting and high-intensity work trigger counter-regulatory hormones (cortisol, adrenaline, growth hormone) that push BG up, which counters your active insulin. Your IOB becomes an asset for this kind of training rather than a threat.
+          </p>
+          <p className="text-white/85 text-sm md:text-base leading-relaxed mb-2">
+            <strong className="text-white">Heads up on what to watch for:</strong>
+          </p>
+          <ul className="space-y-2 text-sm md:text-base text-white/80 mb-3">
+            <li>
+              <strong className="text-da-gold">Mid-session:</strong> if you're going truly intense (close to maximal effort), the cortisol response will likely outpace your IOB. If your intensity stays moderate, the IOB can still drop you — keep rescue carbs accessible just in case.
+            </li>
+            <li>
+              <strong className="text-da-gold">Cool-down (0–60 min after):</strong> BG often rises further as cortisol peaks. Many T1Ds need a small correction bolus 30–60 min post-session. <Link to="/calculators/magic-ratio" className="text-da-cyan underline">Use the Magic Ratio Calculator</Link> to size it.
+            </li>
+            <li>
+              <strong className="text-da-gold">Delayed drop (4–6 hours later):</strong> glycogen replenishment can pull BG down later. Recheck at the 1h and 4h marks.
+            </li>
+          </ul>
+          <p className="text-white/50 italic text-xs">
+            Picking the right activity for today's conditions — instead of forcing the activity you planned — is exactly the kind of smart training that turns reactive diabetic management into proactive athletic management.
+          </p>
+        </div>
+      )}
+
+      {/* STRATEGIC COACHING — SOFT tier (gold, "consider alternatives").
+          Fires when start conditions are sub-optimal but not catastrophic. */}
+      {riskLevel === 'soft' && (
         <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-da-gold">
           <p className="text-da-gold uppercase tracking-wider text-xs font-bold mb-3">🎯 Coach's strategic note — consider these alternatives first</p>
           <p className="text-white/85 text-sm md:text-base leading-relaxed mb-4">
@@ -355,12 +477,23 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
         </p>
       </div>
 
-      {/* Post-workout brief */}
+      {/* Post-workout brief — activity-aware */}
       <div className="bg-da-card rounded-2xl p-6 md:p-8">
         <p className="text-da-gold uppercase tracking-wider text-xs font-bold mb-2">Post-Workout Brief</p>
-        <p className="text-white/70">
-          📉 Watch for a delayed glucose drop 4–6 hours after finishing — glycogen replenishment continues even after the workout ends. Recheck at 1 hour and 4 hours after stopping. Your post-workout bolus needs may be reduced by 50–75%. <Link to="/calculators/magic-ratio" className="text-da-cyan underline">Use the Magic Ratio Calculator</Link> to recalibrate.
-        </p>
+        {(activityType === 'anaerobic' || activityType === 'strength') ? (
+          <div className="text-white/70 space-y-2">
+            <p>
+              <strong className="text-white">📈 Immediately (0–60 min):</strong> Your BG may rise as cortisol and growth hormone peak. Many T1Ds need a small correction bolus 30–60 min after intense sessions — wait until you're cooled down before dosing. <Link to="/calculators/magic-ratio" className="text-da-cyan underline">Use the Magic Ratio Calculator</Link> to size the correction.
+            </p>
+            <p>
+              <strong className="text-white">📉 Delayed (4–6 hours later):</strong> As the cortisol spike resolves and your muscles refill glycogen, BG can drop sharply — often hours after you've forgotten about the workout. Recheck at the 1-hour and 4-hour marks. Your evening or overnight bolus needs may be reduced by 25–50% on training days.
+            </p>
+          </div>
+        ) : (
+          <p className="text-white/70">
+            📉 Watch for a delayed glucose drop 4–6 hours after finishing — glycogen replenishment continues even after the workout ends. Recheck at 1 hour and 4 hours after stopping. Your post-workout bolus needs may be reduced by 50–75%. <Link to="/calculators/magic-ratio" className="text-da-cyan underline">Use the Magic Ratio Calculator</Link> to recalibrate.
+          </p>
+        )}
       </div>
     </div>
   )
