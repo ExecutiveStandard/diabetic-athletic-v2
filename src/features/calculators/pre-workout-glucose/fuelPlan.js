@@ -13,8 +13,12 @@
 const TARGET_RESCUE_MMOL = 6.5
 const TARGET_END_MMOL = 7.5
 const RESCUE_FLOOR_MMOL = 6.0
-const SAFETY_FLOOR_MMOL = 4.6
-const SAFETY_CEILING_MMOL = 15.0
+// Two-stage low-BG handling. Below TRUE_HYPO = treat the hypo, do NOT
+// exercise yet. Between TRUE_HYPO and CAUTION_FLOOR = caution zone (eat to
+// bring BG up to >= 6 mmol/L, then exercise carefully).
+const TRUE_HYPO_MMOL = 3.9
+const CAUTION_FLOOR_MMOL = 5.0
+const SAFETY_CEILING_MMOL = 14.0
 const REFERENCE_WEIGHT_KG = 70
 
 const RESCUE_MIN_G = 5
@@ -128,7 +132,8 @@ export function buildFuelPlan({
 }) {
   const iobNote = buildIobNote(iobUnits)
 
-  if (startGlucoseMmol < SAFETY_FLOOR_MMOL) {
+  // True hypo — treat first, do NOT exercise yet
+  if (startGlucoseMmol < TRUE_HYPO_MMOL) {
     return {
       status: 'delay',
       rescue: null,
@@ -139,10 +144,30 @@ export function buildFuelPlan({
       predictedEndWithFuel: predictedEndMmol,
       iobNote,
       warning:
-        "Don't start your workout yet. Your BG is below 5 mmol/L. Eat 15-20g of fast-acting carbs, wait 15 minutes, then recheck. Begin only once your BG is above 5 mmol/L.",
+        "Treat the hypo first. Your BG is below 3.9 mmol/L. Eat 20g of fast-acting carbs, wait 15 minutes, then recheck. Begin exercise only once your BG is above 5 mmol/L and you feel stable.",
     }
   }
 
+  // Caution zone — between true hypo and the safe-to-start floor.
+  // The user can still exercise but should eat a small protective snack
+  // first to bring BG into a safer range, and approach the session with
+  // care (especially aerobic work).
+  if (startGlucoseMmol < CAUTION_FLOOR_MMOL) {
+    return {
+      status: 'caution-low',
+      rescue: null,
+      activityFuel: null,
+      topUps: [],
+      totalGrams: 0,
+      predictedEndWithoutFuel: predictedEndMmol,
+      predictedEndWithFuel: predictedEndMmol,
+      iobNote,
+      warning:
+        "Eat a small protective snack before starting. Your BG is in the caution zone (3.9–5.0 mmol/L). Eat 15–20g of fast-acting carbs, wait 15 minutes for your BG to climb above 5.0 mmol/L, then re-enter your new BG here for a full fuel plan. Approach aerobic work with extra care today.",
+    }
+  }
+
+  // Hyperglycemia ceiling — check ketones, exercise light if at all
   if (startGlucoseMmol > SAFETY_CEILING_MMOL) {
     return {
       status: 'high-bg-warning',
@@ -154,7 +179,7 @@ export function buildFuelPlan({
       predictedEndWithFuel: predictedEndMmol,
       iobNote,
       warning:
-        'Check for ketones before starting. Your BG is above 15 mmol/L. If ketones are present, follow your diabetes team\'s guidance — don\'t exercise until cleared. If absent, keep this session light (low intensity only) and recheck BG mid-session.',
+        'Check for ketones before starting. Your BG is above 14 mmol/L, the threshold where exercise risks worsening hyperglycemia. If ketones are present, follow your diabetes team\'s guidance — don\'t exercise until cleared. If absent, keep this session light (low intensity only) and recheck BG mid-session.',
     }
   }
 

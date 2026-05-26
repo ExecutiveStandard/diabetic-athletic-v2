@@ -7,13 +7,23 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
       ? `${formatGlucose(mmol, 'mmol')} mmol/L`
       : `${formatGlucose(mmolToMgdl(mmol), 'mgdl')} mg/dL`
 
-  // Safety branch — overrides everything
-  if (fuelPlan.status === 'delay' || fuelPlan.status === 'high-bg-warning') {
+  // Safety branches — override everything else
+  if (
+    fuelPlan.status === 'delay' ||
+    fuelPlan.status === 'caution-low' ||
+    fuelPlan.status === 'high-bg-warning'
+  ) {
+    const headerText = {
+      delay: "⚠️ Don't start your workout yet — treat the hypo first",
+      'caution-low': '⚠️ Caution zone — eat a snack before starting',
+      'high-bg-warning': '⚠️ Check for ketones before starting',
+    }[fuelPlan.status]
+
     return (
       <div className="space-y-4">
         <div className="bg-da-card rounded-2xl p-6 md:p-8 border-l-4 border-yellow-400">
           <p className="text-yellow-400 uppercase tracking-wider text-xs font-bold mb-2">
-            {fuelPlan.status === 'delay' ? '⚠️ Don\'t start your workout yet' : '⚠️ Check for ketones before starting'}
+            {headerText}
           </p>
           <p className="text-white text-base leading-relaxed">{fuelPlan.warning}</p>
         </div>
@@ -177,6 +187,11 @@ export default function FuelPlanResults({ fuelPlan, prediction, glucoseUnit, act
         <p className="text-white/70">
           Recheck your BG at 20 minutes if you feel low. If you're trending fast in either direction, adjust on the fly — these numbers are calibrated starting points, not commandments.
         </p>
+        {(activityType === 'aerobic' || activityType === 'mixed') && (
+          <p className="text-white/70 mt-3">
+            <span className="text-da-gold font-semibold">Hypo-prevention tip:</span> A 10-second all-out sprint at the start of your session — or any time you start drifting low — triggers counter-regulatory hormones that bump your BG up. It's a free, drug-free way to head off a hypo without breaking the workout.
+          </p>
+        )}
       </div>
 
       {/* Post-workout brief */}

@@ -30,18 +30,28 @@ describe('buildFuelPlan — return shape', () => {
 })
 
 describe('buildFuelPlan — safety branches', () => {
-  it('BG < 5 → delay status, no rescue, no fuel, no top-ups', () => {
-    const r = plan({ startGlucoseMmol: 4.5 })
+  it('BG < 3.9 (true hypo) → delay status, no rescue, no fuel, no top-ups', () => {
+    const r = plan({ startGlucoseMmol: 3.5 })
     expect(r.status).toBe('delay')
     expect(r.rescue).toBeNull()
     expect(r.activityFuel).toBeNull()
     expect(r.topUps).toEqual([])
     expect(r.totalGrams).toBe(0)
-    expect(r.warning).toContain("Don't start your workout yet")
+    expect(r.warning).toContain('Treat the hypo first')
   })
 
-  it('BG > 15 → high-bg-warning status, no rescue, no fuel, no top-ups', () => {
-    const r = plan({ startGlucoseMmol: 16.0 })
+  it('BG 3.9–5.0 (caution zone) → caution-low status, no fuel until BG recovers', () => {
+    const r = plan({ startGlucoseMmol: 4.5 })
+    expect(r.status).toBe('caution-low')
+    expect(r.rescue).toBeNull()
+    expect(r.activityFuel).toBeNull()
+    expect(r.topUps).toEqual([])
+    expect(r.totalGrams).toBe(0)
+    expect(r.warning).toContain('caution zone')
+  })
+
+  it('BG > 14 → high-bg-warning status, no rescue, no fuel, no top-ups', () => {
+    const r = plan({ startGlucoseMmol: 14.5 })
     expect(r.status).toBe('high-bg-warning')
     expect(r.rescue).toBeNull()
     expect(r.activityFuel).toBeNull()
@@ -54,21 +64,26 @@ describe('buildFuelPlan — safety branches', () => {
     const r = plan({ startGlucoseMmol: 5.0, predictedEndMmol: 3.5 })
     expect(r.status).toBe('fuel')
   })
+
+  it('BG exactly 14.0 → fuel/no-fuel status (boundary on safe side)', () => {
+    const r = plan({ startGlucoseMmol: 14.0, predictedEndMmol: 11.0 })
+    expect(r.status).not.toBe('high-bg-warning')
+  })
 })
 
 describe('buildFuelPlan — rescue dose (BG < 6)', () => {
-  it('BG 4.9, 70kg → ~10g rescue', () => {
-    const r = plan({ startGlucoseMmol: 4.9, bodyweightKg: 70 })
+  it('BG 5.0, 70kg → ~10g rescue (gap 1.5 × 1.0 ≈ 7.5g → 10g)', () => {
+    const r = plan({ startGlucoseMmol: 5.0, bodyweightKg: 70 })
     expect(r.rescue).not.toBeNull()
-    expect(r.rescue.grams).toBeGreaterThanOrEqual(10)
+    expect(r.rescue.grams).toBeGreaterThanOrEqual(5)
     expect(r.rescue.grams).toBeLessThanOrEqual(15)
   })
 
-  it('BG 4.9, 87kg → ~15g rescue (heavier user, scaled up)', () => {
-    const r = plan({ startGlucoseMmol: 4.9, bodyweightKg: 87 })
-    expect(r.rescue).not.toBeNull()
-    expect(r.rescue.grams).toBeGreaterThanOrEqual(10)
-    expect(r.rescue.grams).toBeLessThanOrEqual(20)
+  it('BG 5.0, 100kg → larger rescue than 70kg (heavier user, weight-scaled)', () => {
+    const r70 = plan({ startGlucoseMmol: 5.0, bodyweightKg: 70 })
+    const r100 = plan({ startGlucoseMmol: 5.0, bodyweightKg: 100 })
+    expect(r100.rescue).not.toBeNull()
+    expect(r100.rescue.grams).toBeGreaterThanOrEqual(r70.rescue.grams)
   })
 
   it('BG 5.5, 70kg → ~5g rescue (smaller gap)', () => {
@@ -88,7 +103,7 @@ describe('buildFuelPlan — rescue dose (BG < 6)', () => {
   })
 
   it('rescue carries a note mentioning recheck in 15 min', () => {
-    const r = plan({ startGlucoseMmol: 4.9 })
+    const r = plan({ startGlucoseMmol: 5.5 })
     expect(r.rescue.note).toContain('15 min')
   })
 })
@@ -274,7 +289,7 @@ describe('buildFuelPlan — top-ups', () => {
 
 describe('buildFuelPlan — totalGrams', () => {
   it('totalGrams = rescue + activityFuel + sum of top-ups', () => {
-    const r = plan({ startGlucoseMmol: 4.9, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
+    const r = plan({ startGlucoseMmol: 5.5, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
     const expected = (r.rescue?.grams || 0) + (r.activityFuel?.grams || 0) + r.topUps.reduce((s, t) => s + t.grams, 0)
     expect(r.totalGrams).toBe(expected)
   })
@@ -284,10 +299,10 @@ describe('buildFuelPlan — totalGrams', () => {
     expect(r.totalGrams).toBe(0)
   })
 
-  it('totalGrams covers a complete worked example (BG 4.9, aerobic 40 min, 87kg)', () => {
-    const r = plan({ startGlucoseMmol: 4.9, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
-    expect(r.rescue.grams).toBeGreaterThanOrEqual(10)
-    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(20)
+  it('totalGrams covers a complete worked example (BG 5.0, aerobic 40 min, 87kg)', () => {
+    const r = plan({ startGlucoseMmol: 5.0, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
+    expect(r.rescue.grams).toBeGreaterThanOrEqual(5)
+    expect(r.activityFuel.grams).toBeGreaterThanOrEqual(15)
     expect(r.totalGrams).toBe(r.rescue.grams + r.activityFuel.grams)
   })
 })
@@ -301,7 +316,7 @@ describe('buildFuelPlan — predictedEnd projection', () => {
   })
 
   it('predictedEndWithFuel is higher than predictedEndWithoutFuel when fuel was recommended', () => {
-    const r = plan({ startGlucoseMmol: 4.9, predictedEndMmol: 2.3, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
+    const r = plan({ startGlucoseMmol: 5.5, predictedEndMmol: 2.3, durationMinutes: 40, activityType: 'aerobic', bodyweightKg: 87 })
     expect(r.predictedEndWithFuel).toBeGreaterThan(r.predictedEndWithoutFuel)
   })
 })
