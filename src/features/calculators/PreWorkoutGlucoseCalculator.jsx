@@ -265,6 +265,16 @@ function PreWorkoutGlucoseCalculatorActual() {
                 </button>
               ))}
             </div>
+
+            {/* Mode explainer — helps users pick the right mode */}
+            <div className="mt-3 bg-da-card rounded-lg p-4 border-l-2 border-da-cyan/50 text-sm leading-relaxed">
+              <p className="text-white/80 mb-2">
+                <span className="text-da-cyan font-bold">Beginner</span> — a solid fuel plan from just the essentials: starting glucose, activity, duration, body weight, and active insulin on board. Pick this if you're new here, in a hurry, or don't track the more detailed metrics.
+              </p>
+              <p className="text-white/80">
+                <span className="text-da-cyan font-bold">Advanced</span> — for the most personalized, accurate result. Adds heart-rate zone, insulin type and any pre-workout adjustment, CGM trend arrow, menstrual cycle phase, training status, fasted vs fed, and time of day. Pick this if you have the data and want a plan dialed to your situation — especially useful for athletes tracking training carefully, women whose cycle affects insulin sensitivity, or anyone using a CGM who can see their trend.
+              </p>
+            </div>
           </div>
 
           {/* StepCard 1 — Starting Glucose */}
