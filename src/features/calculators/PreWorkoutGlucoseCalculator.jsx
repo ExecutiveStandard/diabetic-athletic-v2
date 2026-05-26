@@ -283,7 +283,7 @@ function PreWorkoutGlucoseCalculatorActual() {
               <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Starting Glucose</label>
               <div className="flex gap-2">
                 <input
-                  type="number" inputMode="decimal" value={startGlucose}
+                  type="text" inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" value={startGlucose}
                   onChange={(e) => setStartGlucose(e.target.value)}
                   placeholder={glucoseUnit === 'mmol' ? 'e.g. 6.5' : 'e.g. 120'}
                   className="flex-1 bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30"
@@ -326,7 +326,7 @@ function PreWorkoutGlucoseCalculatorActual() {
             <div>
               <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Body Weight</label>
               <div className="flex gap-2">
-                <input type="number" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)}
+                <input type="text" inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" value={weight} onChange={(e) => setWeight(e.target.value)}
                   placeholder={weightUnit === 'kg' ? 'e.g. 75' : 'e.g. 165'}
                   className="flex-1 bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
                 <div className="flex bg-da-dark border border-white/10 rounded-lg overflow-hidden">
@@ -341,7 +341,7 @@ function PreWorkoutGlucoseCalculatorActual() {
           <StepCard stepNumber={4} title="Active Insulin (IOB)">
             <div>
               <label className="block text-da-cyan uppercase tracking-wider text-xs font-bold mb-2">Active Insulin (IOB, units)</label>
-              <input type="number" inputMode="decimal" step="0.1" value={iobUnits}
+              <input type="text" inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" step="0.1" value={iobUnits}
                 onChange={(e) => setIobUnits(e.target.value)}
                 placeholder={helperIob != null ? `Auto: ${helperIob.toFixed(2)}u` : 'e.g. 1.5'}
                 className="w-full bg-da-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30" />
@@ -352,7 +352,7 @@ function PreWorkoutGlucoseCalculatorActual() {
               {iobHelperOpen && (
                 <div className="mt-3 p-4 bg-da-dark rounded-lg space-y-3">
                   <p className="text-xs text-white/50">Pump users: read IOB off your pump. This is for MDI users.</p>
-                  <input type="number" inputMode="decimal" step="0.5" value={lastBolus} onChange={(e) => setLastBolus(e.target.value)} placeholder="Last bolus units" className="w-full bg-da-darker border border-white/10 rounded-lg px-4 py-2 text-white placeholder-white/30 text-sm" />
+                  <input type="text" inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" step="0.5" value={lastBolus} onChange={(e) => setLastBolus(e.target.value)} placeholder="Last bolus units" className="w-full bg-da-darker border border-white/10 rounded-lg px-4 py-2 text-white placeholder-white/30 text-sm" />
                   <input type="number" inputMode="numeric" value={minutesSinceBolus} onChange={(e) => setMinutesSinceBolus(e.target.value)} placeholder="Minutes since bolus" className="w-full bg-da-darker border border-white/10 rounded-lg px-4 py-2 text-white placeholder-white/30 text-sm" />
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setInsulinType('rapid')} className={`flex-1 py-2 rounded text-sm ${insulinType === 'rapid' ? 'bg-da-cyan text-da-dark font-bold' : 'bg-da-darker border border-white/10 text-white/60'}`}>Rapid-acting</button>

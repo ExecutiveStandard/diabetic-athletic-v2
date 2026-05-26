@@ -167,8 +167,9 @@ function CalorieCalculatorActual() {
 
             <div className="space-y-4">
               <input
-                type="number"
-                min="10" max="120"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
                 placeholder="How old are you? *"
@@ -194,8 +195,9 @@ function CalorieCalculatorActual() {
 
               {units === 'metric' ? (
                 <input
-                  type="number"
-                  min="50" max="250"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.]?[0-9]*"
                   value={heightCm}
                   onChange={(e) => setHeightCm(e.target.value)}
                   placeholder="What is your height in CM? *"
@@ -204,13 +206,13 @@ function CalorieCalculatorActual() {
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   <input
-                    type="number" min="3" max="8"
+                    type="text" inputMode="numeric" pattern="[0-9]*"
                     value={heightFt} onChange={(e) => setHeightFt(e.target.value)}
                     placeholder="Height (ft)"
                     className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
                   />
                   <input
-                    type="number" min="0" max="11"
+                    type="text" inputMode="numeric" pattern="[0-9]*"
                     value={heightIn} onChange={(e) => setHeightIn(e.target.value)}
                     placeholder="Height (in)"
                     className="w-full px-4 py-3 bg-da-darker border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-da-cyan transition"
@@ -219,8 +221,9 @@ function CalorieCalculatorActual() {
               )}
 
               <input
-                type="number"
-                min="20" max="500" step="0.1"
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*[.]?[0-9]*"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 placeholder={`What is your weight in ${units === 'metric' ? 'KG' : 'LBS'}? *`}

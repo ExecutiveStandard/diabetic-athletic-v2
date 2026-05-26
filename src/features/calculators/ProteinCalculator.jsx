@@ -430,10 +430,9 @@ function ProteinCalculatorActual() {
               Weight ({units}) *
             </label>
             <input
-              type="number"
-              min="0"
-              max="560"
-              step="0.1"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.]?[0-9]*"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
               placeholder={units === 'lbs' ? 'e.g. 165' : 'e.g. 75'}

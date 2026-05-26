@@ -437,9 +437,9 @@ function InsulinCalculatorActual() {
               </label>
               <div className="grid grid-cols-3 gap-3">
                 <input
-                  type="number"
-                  min="0"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.]?[0-9]*"
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   placeholder={weightUnits === 'kg' ? '75' : '165'}
@@ -513,7 +513,7 @@ function InsulinCalculatorActual() {
                   Actual Total Daily Dose (units, optional)
                 </label>
                 <input
-                  type="number" step="0.5" min="5" max="200"
+                  type="text" inputMode="decimal" pattern="[0-9]*[.]?[0-9]*"
                   value={actualTdd}
                   onChange={(e) => setActualTdd(e.target.value)}
                   placeholder="e.g. 32"
@@ -602,9 +602,9 @@ function InsulinCalculatorActual() {
                 Carbohydrate Content (g)
               </label>
               <input
-                type="number"
-                min="0"
-                step="0.1"
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*[.]?[0-9]*"
                 value={carbGrams}
                 onChange={(e) => setCarbGrams(e.target.value)}
                 placeholder="How many grams of carbs in your meal?"
@@ -664,9 +664,9 @@ function InsulinCalculatorActual() {
                   Current BG ({bgUnit})
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.]?[0-9]*"
                   value={currentBG}
                   onChange={(e) => setCurrentBG(e.target.value)}
                   placeholder={bgUnit === 'mg/dL' ? '180' : '10'}
