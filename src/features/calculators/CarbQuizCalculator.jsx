@@ -47,8 +47,15 @@ const Q2_IMAGES = [
 
 function CarbQuizCalculatorActual() {
   const [slide, setSlide] = useState(SLIDES.INTRO)
+  // How many foods the user picked on Q1. Drives whether the reveal
+  // affirms ("Correct, they all do") or teaches ("Surprised? You're
+  // not alone"). Defaults to 0; gets set when Q1 is submitted.
+  const [q1Count, setQ1Count] = useState(0)
 
-  const reset = () => setSlide(SLIDES.INTRO)
+  const reset = () => {
+    setSlide(SLIDES.INTRO)
+    setQ1Count(0)
+  }
 
   return (
     <div className="min-h-screen bg-da-dark py-12 md:py-16">
@@ -75,17 +82,38 @@ function CarbQuizCalculatorActual() {
               hint="Pick all you think apply."
               images={Q1_IMAGES}
               multiSelect
-              onPick={() => setSlide(SLIDES.Q1_REVEAL)}
+              onPick={(selected) => {
+                setQ1Count(selected.length)
+                setSlide(SLIDES.Q1_REVEAL)
+              }}
             />
           )}
 
-          {slide === SLIDES.Q1_REVEAL && (
+          {slide === SLIDES.Q1_REVEAL && q1Count === Q1_IMAGES.length && (
             <RevealSlide
-              heading="🎯 They all do."
+              heading="✅ Correct — they all do."
               body={
                 <>
                   <p className="mb-3">
-                    Surprised? You're not alone. Most T1Ds — even experienced ones — instinctively pick the "obvious" carb on a plate (the bread, the chocolate) and miss the carbs hiding in fruit (watermelon), dairy (Greek yogurt's natural lactose), sauces, vegetables, and even some "savoury" foods.
+                    Nailed it. The trap most T1Ds fall into is to only count the carbs they can <em>see</em> on a label or recognise on sight. You skipped right past that — picking all four means you already understand the most important rule of carb counting.
+                  </p>
+                  <p>
+                    <strong className="text-da-cyan">Almost every food you eat contains some carbohydrate</strong> — only pure proteins and pure fats are carb-free. The amount varies wildly (a slice of bread vs. a serving of yogurt vs. a piece of watermelon), but the instinct you just demonstrated — assume carbs are present until proven otherwise — is what separates accurate dosing from constant guesswork.
+                  </p>
+                </>
+              }
+              cta="Next question"
+              onNext={() => setSlide(SLIDES.Q2)}
+            />
+          )}
+
+          {slide === SLIDES.Q1_REVEAL && q1Count < Q1_IMAGES.length && (
+            <RevealSlide
+              heading="🎯 Actually — they all do."
+              body={
+                <>
+                  <p className="mb-3">
+                    You're not alone. Most T1Ds — even experienced ones — instinctively pick the "obvious" carbs on a plate (the bread, the chocolate) and miss the carbs hiding in fruit (watermelon), dairy (Greek yogurt's natural lactose), sauces, vegetables, and even some "savoury" foods.
                   </p>
                   <p>
                     <strong className="text-da-cyan">Almost every food you eat contains some carbohydrate</strong> — only pure proteins and pure fats are carb-free. The amount varies wildly, but if you only count the carbs you can <em>see</em> on a label or recognise on sight, you're going to mis-dose, and your BG numbers will tell on you later.
