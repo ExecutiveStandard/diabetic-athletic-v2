@@ -29,16 +29,16 @@ const SLIDES = {
 }
 
 const Q1_IMAGES = [
-  { src: '/images/carb-quiz/slide-2-1.png', alt: 'Food option 1' },
-  { src: '/images/carb-quiz/slide-2-2.png', alt: 'Food option 2' },
-  { src: '/images/carb-quiz/slide-2-3.png', alt: 'Food option 3' },
-  { src: '/images/carb-quiz/slide-2-4.png', alt: 'Food option 4' },
+  { src: '/images/carb-quiz/slide-2-1.jpg', alt: 'Watermelon' },
+  { src: '/images/carb-quiz/slide-2-2.jpg', alt: 'Artisan bread' },
+  { src: '/images/carb-quiz/slide-2-3.jpg', alt: 'Dark chocolate' },
+  { src: '/images/carb-quiz/slide-2-4.jpg', alt: 'Greek yogurt with honey' },
 ]
 
 const Q2_IMAGES = [
-  { src: '/images/carb-quiz/slide-5-1.png', alt: 'High-carb food option', correct: true },
-  { src: '/images/carb-quiz/slide-5-2.png', alt: 'Low-carb food option', correct: false },
-  { src: '/images/carb-quiz/slide-5-3.png', alt: 'Low-carb food option', correct: false },
+  { src: '/images/carb-quiz/slide-5-1.jpg', alt: 'Starches and sugars', correct: true },
+  { src: '/images/carb-quiz/slide-5-2.jpg', alt: 'Fats and salt', correct: false },
+  { src: '/images/carb-quiz/slide-5-3.jpg', alt: 'Calories and cholesterol', correct: false },
 ]
 
 function CarbQuizCalculatorActual() {
@@ -79,10 +79,10 @@ function CarbQuizCalculatorActual() {
               body={
                 <>
                   <p className="mb-3">
-                    Surprised? You're not alone. Most T1Ds — even experienced ones — instinctively pick the "obvious" carb on a plate (the bread, the pasta) and miss the carbs hiding in fruit, dairy, sauces, vegetables, even some "savoury" foods.
+                    Surprised? You're not alone. Most T1Ds — even experienced ones — instinctively pick the "obvious" carb on a plate (the bread, the chocolate) and miss the carbs hiding in fruit (watermelon), dairy (Greek yogurt's natural lactose), sauces, vegetables, and even some "savoury" foods.
                   </p>
                   <p>
-                    <strong className="text-da-cyan">Every plant-based food contains carbohydrates.</strong> The amount varies wildly — but if you only count the carbs you can see on a label or recognise on sight, you're going to mis-dose, and the BG numbers will tell on you later.
+                    <strong className="text-da-cyan">Almost every food you eat contains some carbohydrate</strong> — only pure proteins and pure fats are carb-free. The amount varies wildly, but if you only count the carbs you can <em>see</em> on a label or recognise on sight, you're going to mis-dose, and your BG numbers will tell on you later.
                   </p>
                 </>
               }
@@ -93,7 +93,7 @@ function CarbQuizCalculatorActual() {
 
           {slide === SLIDES.Q2 && (
             <ImageQuestionSlide
-              question="Which of these is the HIGHEST-carb food?"
+              question="And which of these IS a carbohydrate?"
               images={Q2_IMAGES}
               onPick={(img) => setSlide(img.correct ? SLIDES.Q2_CORRECT : SLIDES.Q2_WRONG)}
             />
@@ -104,7 +104,7 @@ function CarbQuizCalculatorActual() {
               heading="❌ Not quite — look again."
               body={
                 <p>
-                  That one's lower-carb than you think. The food you're looking for is the one with the densest, most refined carbohydrate content — the kind that hits your bloodstream fast and hard.
+                  Carbohydrates aren't fats, salt, calories, or cholesterol — those are different macronutrients and metrics entirely. There's one answer that's the actual chemical definition of a carbohydrate.
                 </p>
               }
               cta="Try again"
@@ -114,14 +114,14 @@ function CarbQuizCalculatorActual() {
 
           {slide === SLIDES.Q2_CORRECT && (
             <RevealSlide
-              heading="✅ Correct."
+              heading="✅ Correct — starches and sugars."
               body={
                 <>
                   <p className="mb-3">
-                    Spotted it. That's a high-density carbohydrate food — fast to digest, fast to spike, fast to drop. Knowing which foods land in this category is the first half of dosing accurately. Knowing <em>how much</em> they raise your specific blood glucose — and how to time the insulin — is the other half.
+                    A carbohydrate is, chemically, a <strong className="text-white">starch or a sugar</strong>. That's it. Everything else on a food label (fat, salt, calories, cholesterol) is a different category. When a label tells you "total carbohydrate," what you're reading is starches + sugars combined.
                   </p>
                   <p>
-                    That's the work most T1Ds never get formally taught. And it's exactly what we systematise inside <strong className="text-white">The Diabetic Athletic Club</strong>.
+                    Knowing what carbs ARE is half the battle. Knowing <em>how much</em> they raise your specific blood glucose — and how to time the insulin around them — is the other half. That's the work most T1Ds never get formally taught. And it's exactly what we systematise inside <strong className="text-white">The Diabetic Athletic Club</strong>.
                   </p>
                 </>
               }
