@@ -80,4 +80,17 @@ export const OPT_IN_CONTENT = {
     placeholderIcon: '🍴',
     placeholderTagline: 'Meal timing that serves your training',
   },
+  'carb-quiz': {
+    headline: 'How Well Do You Know Your Carbs?',
+    subhead: 'A quick, two-question quiz that reveals one of the most misunderstood truths about carbohydrates and Type 1 diabetes. Most people get the first question wrong — and the lesson behind it changes how you read food labels forever.',
+    bullets: [
+      'Spot the foods that secretly contain carbs (the answer surprises most T1Ds)',
+      'Learn why "hidden carbs" trip up even experienced carb-counters',
+      'Takes 60 seconds — no math, no spreadsheets, just food choices',
+      'Builds the foundational awareness behind every dosing decision',
+    ],
+    ctaText: 'Take The Quiz',
+    placeholderIcon: '❓',
+    placeholderTagline: 'Test your carb awareness in 60 seconds',
+  },
 }

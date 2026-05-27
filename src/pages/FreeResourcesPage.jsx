@@ -44,6 +44,13 @@ const calculators = [
     description: 'Plug in your daily macros — get a structured eating plan with peri-workout-weighted distribution (65% carbs to pre/post by default), built from Nicholas\'s actual coaching system. Adapts to training time and respects the 35-45g carbs-per-meal dosing rule.',
     badge: 'NEW',
   },
+  {
+    slug: 'carb-quiz',
+    name: 'How Well Do You Know Your Carbs?',
+    tagline: 'Two questions. One surprising lesson.',
+    description: 'A quick, 60-second carb-awareness quiz that reveals one of the most-missed truths about carbohydrates and Type 1 diabetes. Most T1Ds get the first question wrong — and the lesson behind it changes how you read every food label from then on.',
+    badge: 'NEW',
+  },
 ]
 
 export default function FreeResourcesPage() {
