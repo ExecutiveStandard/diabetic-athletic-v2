@@ -46,9 +46,9 @@ const calculators = [
   },
   {
     slug: 'carb-quiz',
-    name: 'How Well Do You Know Your Carbs?',
-    tagline: 'Two questions. One surprising lesson.',
-    description: 'A quick, 60-second carb-awareness quiz that reveals one of the most-missed truths about carbohydrates and Type 1 diabetes. Most T1Ds get the first question wrong — and the lesson behind it changes how you read every food label from then on.',
+    name: 'The Carb Counting Quiz',
+    tagline: '14 questions. The four skills.',
+    description: "A full carb-counting masterclass in quiz form — 14 questions across four sections: where carbs live, GI speed, reading labels, and reading a plate. About 5 minutes, no math homework — just the foundational reps every accurate T1D dosing decision rests on.",
     badge: 'NEW',
   },
 ]
