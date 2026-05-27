@@ -71,8 +71,10 @@ function CarbQuizCalculatorActual() {
 
           {slide === SLIDES.Q1 && (
             <ImageQuestionSlide
-              question="Choose the food that contains carbohydrates."
+              question="Which of these foods contain carbohydrates?"
+              hint="Pick all you think apply."
               images={Q1_IMAGES}
+              multiSelect
               onPick={() => setSlide(SLIDES.Q1_REVEAL)}
             />
           )}
@@ -174,34 +176,70 @@ function IntroSlide({ onStart }) {
   )
 }
 
-function ImageQuestionSlide({ question, images, onPick }) {
+function ImageQuestionSlide({ question, hint, images, onPick, multiSelect = false }) {
   // Two-stage selection: user taps to SELECT (visual highlight), then taps
   // Submit to commit. Lets them consider all options before answering and
   // change their mind if they tap the wrong one initially.
-  const [selected, setSelected] = useState(null)
+  //
+  // multiSelect=true → user can pick any number of options (used on Q1
+  //   where the lesson is "they all do" — picking multiple is the right
+  //   instinct). Tapping an already-selected image deselects it.
+  // multiSelect=false (default) → single selection, picking a new image
+  //   replaces the previous selection (used on Q2 where only one answer
+  //   is the carbohydrate).
+  const [selected, setSelected] = useState(multiSelect ? [] : null)
+
+  const isSelected = (img) =>
+    multiSelect
+      ? selected.some((s) => s.src === img.src)
+      : selected?.src === img.src
+
+  const hasSelection = multiSelect ? selected.length > 0 : selected !== null
+
+  const handleSelect = (img) => {
+    if (multiSelect) {
+      setSelected((prev) =>
+        prev.some((s) => s.src === img.src)
+          ? prev.filter((s) => s.src !== img.src)
+          : [...prev, img],
+      )
+    } else {
+      setSelected(img)
+    }
+  }
 
   const handleSubmit = () => {
-    if (!selected) return
+    if (!hasSelection) return
     onPick(selected)
   }
 
+  const submitLabel = !hasSelection
+    ? (multiSelect ? 'Select one or more images above' : 'Select an image above')
+    : multiSelect
+    ? `Submit ${selected.length} ${selected.length === 1 ? 'answer' : 'answers'} →`
+    : 'Submit answer →'
+
   return (
     <div>
-      <h2 className="text-xl md:text-2xl font-bold text-white text-center mb-6 leading-tight">
+      <h2 className="text-xl md:text-2xl font-bold text-white text-center mb-2 leading-tight">
         {question}
       </h2>
+      {hint && (
+        <p className="text-da-cyan/80 text-sm text-center mb-6 italic">{hint}</p>
+      )}
+      {!hint && <div className="mb-6" />}
       <div className={`grid gap-3 md:gap-4 ${images.length === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
         {images.map((img) => {
-          const isSelected = selected?.src === img.src
+          const sel = isSelected(img)
           return (
             <button
               key={img.src}
               type="button"
-              onClick={() => setSelected(img)}
+              onClick={() => handleSelect(img)}
               aria-label={img.alt}
-              aria-pressed={isSelected}
+              aria-pressed={sel}
               className={`block bg-da-darker border-2 rounded-xl overflow-hidden focus:outline-none transition group relative ${
-                isSelected
+                sel
                   ? 'border-da-cyan ring-2 ring-da-cyan/50 shadow-lg shadow-da-cyan/20'
                   : 'border-white/10 hover:border-da-cyan/60'
               }`}
@@ -212,20 +250,20 @@ function ImageQuestionSlide({ question, images, onPick }) {
                   alt={img.alt}
                   loading="lazy"
                   className={`w-full h-full object-cover transition duration-300 ${
-                    isSelected ? 'scale-105' : 'group-hover:scale-105'
+                    sel ? 'scale-105' : 'group-hover:scale-105'
                   }`}
                 />
               </div>
               {img.label && (
                 <div className={`px-2 py-2 md:py-3 text-center border-t transition ${
-                  isSelected ? 'bg-da-cyan/15 border-da-cyan/40' : 'bg-da-darker border-white/10'
+                  sel ? 'bg-da-cyan/15 border-da-cyan/40' : 'bg-da-darker border-white/10'
                 }`}>
-                  <span className={`font-bold text-sm md:text-base tracking-wide ${isSelected ? 'text-da-cyan' : 'text-white'}`}>
+                  <span className={`font-bold text-sm md:text-base tracking-wide ${sel ? 'text-da-cyan' : 'text-white'}`}>
                     {img.label}
                   </span>
                 </div>
               )}
-              {isSelected && (
+              {sel && (
                 <div className="absolute top-2 right-2 bg-da-cyan text-da-dark rounded-full w-7 h-7 flex items-center justify-center font-black text-sm shadow-md">
                   ✓
                 </div>
@@ -238,14 +276,14 @@ function ImageQuestionSlide({ question, images, onPick }) {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!selected}
+          disabled={!hasSelection}
           className={`inline-flex items-center justify-center font-bold uppercase tracking-wider rounded-md px-10 py-4 text-base transition ${
-            selected
+            hasSelection
               ? 'bg-gradient-to-r from-da-cyan to-da-gold text-da-dark hover:opacity-95 cursor-pointer'
               : 'bg-da-darker text-white/30 cursor-not-allowed border border-white/10'
           }`}
         >
-          {selected ? 'Submit answer →' : 'Select an image above'}
+          {submitLabel}
         </button>
       </div>
     </div>
