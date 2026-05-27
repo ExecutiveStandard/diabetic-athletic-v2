@@ -28,11 +28,15 @@ const SLIDES = {
   FINALE: 'finale',
 }
 
+// Q1 images carry a visible `label` so users always know what each food
+// is — important for the less-obvious ones (Greek yogurt) and useful for
+// accessibility on the obvious ones. Q2 images have their text built
+// into the image itself (the placard signs) so no label needed there.
 const Q1_IMAGES = [
-  { src: '/images/carb-quiz/slide-2-1.jpg', alt: 'Watermelon' },
-  { src: '/images/carb-quiz/slide-2-2.jpg', alt: 'Artisan bread' },
-  { src: '/images/carb-quiz/slide-2-3.jpg', alt: 'Dark chocolate' },
-  { src: '/images/carb-quiz/slide-2-4.jpg', alt: 'Greek yogurt with honey' },
+  { src: '/images/carb-quiz/slide-2-1.jpg', alt: 'Watermelon', label: 'Watermelon' },
+  { src: '/images/carb-quiz/slide-2-2.jpg', alt: 'Artisan bread', label: 'Bread' },
+  { src: '/images/carb-quiz/slide-2-3.jpg', alt: 'Dark chocolate', label: 'Chocolate' },
+  { src: '/images/carb-quiz/slide-2-4.jpg', alt: 'Plain Greek yogurt', label: 'Greek Yogurt' },
 ]
 
 const Q2_IMAGES = [
@@ -182,15 +186,24 @@ function ImageQuestionSlide({ question, images, onPick }) {
             key={img.src}
             type="button"
             onClick={() => onPick(img)}
-            className="block bg-da-darker border-2 border-white/10 rounded-xl overflow-hidden hover:border-da-cyan focus:border-da-cyan focus:outline-none transition aspect-square"
+            className="block bg-da-darker border-2 border-white/10 rounded-xl overflow-hidden hover:border-da-cyan focus:border-da-cyan focus:outline-none transition group"
             aria-label={img.alt}
           >
-            <img
-              src={img.src}
-              alt={img.alt}
-              loading="lazy"
-              className="w-full h-full object-cover"
-            />
+            <div className="aspect-square overflow-hidden">
+              <img
+                src={img.src}
+                alt={img.alt}
+                loading="lazy"
+                className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+              />
+            </div>
+            {img.label && (
+              <div className="px-2 py-2 md:py-3 text-center bg-da-darker border-t border-white/10">
+                <span className="text-white font-bold text-sm md:text-base tracking-wide">
+                  {img.label}
+                </span>
+              </div>
+            )}
           </button>
         ))}
       </div>
