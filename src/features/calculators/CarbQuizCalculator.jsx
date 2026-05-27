@@ -175,41 +175,79 @@ function IntroSlide({ onStart }) {
 }
 
 function ImageQuestionSlide({ question, images, onPick }) {
+  // Two-stage selection: user taps to SELECT (visual highlight), then taps
+  // Submit to commit. Lets them consider all options before answering and
+  // change their mind if they tap the wrong one initially.
+  const [selected, setSelected] = useState(null)
+
+  const handleSubmit = () => {
+    if (!selected) return
+    onPick(selected)
+  }
+
   return (
     <div>
       <h2 className="text-xl md:text-2xl font-bold text-white text-center mb-6 leading-tight">
         {question}
       </h2>
       <div className={`grid gap-3 md:gap-4 ${images.length === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
-        {images.map((img) => (
-          <button
-            key={img.src}
-            type="button"
-            onClick={() => onPick(img)}
-            className="block bg-da-darker border-2 border-white/10 rounded-xl overflow-hidden hover:border-da-cyan focus:border-da-cyan focus:outline-none transition group"
-            aria-label={img.alt}
-          >
-            <div className="aspect-square overflow-hidden">
-              <img
-                src={img.src}
-                alt={img.alt}
-                loading="lazy"
-                className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-              />
-            </div>
-            {img.label && (
-              <div className="px-2 py-2 md:py-3 text-center bg-da-darker border-t border-white/10">
-                <span className="text-white font-bold text-sm md:text-base tracking-wide">
-                  {img.label}
-                </span>
+        {images.map((img) => {
+          const isSelected = selected?.src === img.src
+          return (
+            <button
+              key={img.src}
+              type="button"
+              onClick={() => setSelected(img)}
+              aria-label={img.alt}
+              aria-pressed={isSelected}
+              className={`block bg-da-darker border-2 rounded-xl overflow-hidden focus:outline-none transition group relative ${
+                isSelected
+                  ? 'border-da-cyan ring-2 ring-da-cyan/50 shadow-lg shadow-da-cyan/20'
+                  : 'border-white/10 hover:border-da-cyan/60'
+              }`}
+            >
+              <div className="aspect-square overflow-hidden">
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  loading="lazy"
+                  className={`w-full h-full object-cover transition duration-300 ${
+                    isSelected ? 'scale-105' : 'group-hover:scale-105'
+                  }`}
+                />
               </div>
-            )}
-          </button>
-        ))}
+              {img.label && (
+                <div className={`px-2 py-2 md:py-3 text-center border-t transition ${
+                  isSelected ? 'bg-da-cyan/15 border-da-cyan/40' : 'bg-da-darker border-white/10'
+                }`}>
+                  <span className={`font-bold text-sm md:text-base tracking-wide ${isSelected ? 'text-da-cyan' : 'text-white'}`}>
+                    {img.label}
+                  </span>
+                </div>
+              )}
+              {isSelected && (
+                <div className="absolute top-2 right-2 bg-da-cyan text-da-dark rounded-full w-7 h-7 flex items-center justify-center font-black text-sm shadow-md">
+                  ✓
+                </div>
+              )}
+            </button>
+          )
+        })}
       </div>
-      <p className="text-white/40 text-xs text-center mt-4 italic">
-        Tap an image to submit your answer
-      </p>
+      <div className="mt-6 text-center">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!selected}
+          className={`inline-flex items-center justify-center font-bold uppercase tracking-wider rounded-md px-10 py-4 text-base transition ${
+            selected
+              ? 'bg-gradient-to-r from-da-cyan to-da-gold text-da-dark hover:opacity-95 cursor-pointer'
+              : 'bg-da-darker text-white/30 cursor-not-allowed border border-white/10'
+          }`}
+        >
+          {selected ? 'Submit answer →' : 'Select an image above'}
+        </button>
+      </div>
     </div>
   )
 }
